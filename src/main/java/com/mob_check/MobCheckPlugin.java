@@ -21,13 +21,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-@PluginDescriptor(
-	name = "Mob Check",
-	description = "Dynamic PvM Priority Prayer Helper",
-	tags = {"pvm", "prayer", "dynamic", "projectiles", "sound", "combat", "helper"}
-)
-public class MobCheckPlugin extends Plugin
-{
+@PluginDescriptor(name = "Mob Check", description = "Dynamic PvM Priority Prayer Helper", tags = { "pvm", "prayer",
+		"dynamic", "projectiles", "sound", "combat", "helper" })
+public class MobCheckPlugin extends Plugin {
 	@Inject
 	private Client client;
 
@@ -40,14 +36,12 @@ public class MobCheckPlugin extends Plugin
 	@Inject
 	private OverlayManager overlayManager;
 
-	public static class AttackState
-	{
+	public static class AttackState {
 		public int ticks;
 		public final String style;
 		public final String npcName;
 
-		public AttackState(int ticks, String style, String npcName)
-		{
+		public AttackState(int ticks, String style, String npcName) {
 			this.ticks = ticks;
 			this.style = style;
 			this.npcName = npcName;
@@ -59,13 +53,12 @@ public class MobCheckPlugin extends Plugin
 
 	// Comprehensive projectile mappings
 	private static final Map<Integer, String> PROJECTILE_STYLES = new HashMap<>();
-	static
-	{
+	static {
 		// Inferno
 		PROJECTILE_STYLES.put(1374, "Pray Magic"); // Jal-Zek
 		PROJECTILE_STYLES.put(1376, "Pray Range"); // Jal-Xil
-		PROJECTILE_STYLES.put(448, "Pray Magic");  // Jad Mage
-		PROJECTILE_STYLES.put(449, "Pray Range");  // Jad Range
+		PROJECTILE_STYLES.put(448, "Pray Magic"); // Jad Mage
+		PROJECTILE_STYLES.put(449, "Pray Range"); // Jad Range
 
 		// Zulrah
 		PROJECTILE_STYLES.put(1044, "Pray Magic"); // Mage phase standard / Snakeling Mage
@@ -105,14 +98,13 @@ public class MobCheckPlugin extends Plugin
 		PROJECTILE_STYLES.put(2689, "Pray Magic"); // Sol Heredit Ranged/Magic special projectile
 
 		// General / Standard
-		PROJECTILE_STYLES.put(15, "Pray Range");  // Standard arrows / Range NPC projectiles
+		PROJECTILE_STYLES.put(15, "Pray Range"); // Standard arrows / Range NPC projectiles
 		PROJECTILE_STYLES.put(160, "Pray Magic"); // Standard spells / Magic NPC projectiles
 	}
 
 	// Comprehensive animation mappings (mainly for Melee/Instant attacks)
 	private static final Map<Integer, Integer> MELEE_ANIMATIONS = new HashMap<>();
-	static
-	{
+	static {
 		MELEE_ANIMATIONS.put(2309, 4); // Abyssal demon
 		MELEE_ANIMATIONS.put(1552, 4); // Bloodveld
 		MELEE_ANIMATIONS.put(6964, 4); // Commander Zilyana Melee
@@ -130,53 +122,45 @@ public class MobCheckPlugin extends Plugin
 	}
 
 	@Provides
-	MobCheckConfig provideConfig(ConfigManager configManager)
-	{
+	MobCheckConfig provideConfig(ConfigManager configManager) {
 		return configManager.getConfig(MobCheckConfig.class);
 	}
 
 	@Override
-	protected void startUp()
-	{
+	protected void startUp() {
 		npcMeleeAttacks.clear();
 		overlayManager.add(overlay);
 	}
 
 	@Override
-	protected void shutDown()
-	{
+	protected void shutDown() {
 		npcMeleeAttacks.clear();
 		overlayManager.remove(overlay);
 	}
 
 	@Subscribe
-	public void onAnimationChanged(AnimationChanged event)
-	{
-		if (!(event.getActor() instanceof NPC))
-		{
+	public void onAnimationChanged(AnimationChanged event) {
+		if (!(event.getActor() instanceof NPC)) {
 			return;
 		}
 
 		NPC npc = (NPC) event.getActor();
 		Player localPlayer = client.getLocalPlayer();
-		if (localPlayer == null || npc.getInteracting() != localPlayer)
-		{
+		if (localPlayer == null || npc.getInteracting() != localPlayer) {
 			return;
 		}
 
 		int anim = npc.getAnimation();
 
-		if (MELEE_ANIMATIONS.containsKey(anim))
-		{
+		if (MELEE_ANIMATIONS.containsKey(anim)) {
 			int warningTicks = MELEE_ANIMATIONS.get(anim);
 			npcMeleeAttacks.put(npc.getIndex(),
-				new AttackState(warningTicks, "Pray Melee", npc.getName()));
+					new AttackState(warningTicks, "Pray Melee", npc.getName()));
 		}
 	}
 
 	@Subscribe
-	public void onGameTick(GameTick event)
-	{
+	public void onGameTick(GameTick event) {
 		// Countdown transient melee attacks
 		npcMeleeAttacks.entrySet().removeIf(entry -> {
 			entry.getValue().ticks--;
@@ -185,44 +169,33 @@ public class MobCheckPlugin extends Plugin
 
 		// Sound alert on priority change
 		Optional<AttackState> priorityOpt = getPriorityAttack();
-		if (priorityOpt.isPresent())
-		{
+		if (priorityOpt.isPresent()) {
 			AttackState priority = priorityOpt.get();
-			if (config.playSoundAlert() && !priority.style.equals(lastPriorityStyle))
-			{
+			if (config.playSoundAlert() && !priority.style.equals(lastPriorityStyle)) {
 				client.playSoundEffect(config.soundEffectId());
 			}
 			lastPriorityStyle = priority.style;
-		}
-		else
-		{
+		} else {
 			lastPriorityStyle = "";
 		}
 	}
 
-	public Optional<AttackState> getPriorityAttack()
-	{
+	public Optional<AttackState> getPriorityAttack() {
 		List<AttackState> attacks = new ArrayList<>();
 		Player localPlayer = client.getLocalPlayer();
 
 		// Gather active projectiles targeting the player
-		if (client.getProjectiles() != null && localPlayer != null)
-		{
-			for (Projectile projectile : client.getProjectiles())
-			{
-				if (projectile.getInteracting() == localPlayer)
-				{
+		if (client.getProjectiles() != null && localPlayer != null) {
+			for (Projectile projectile : client.getProjectiles()) {
+				if (projectile.getInteracting() == localPlayer) {
 					String style = PROJECTILE_STYLES.get(projectile.getId());
-					if (style == null && config.trackUnknownProjectiles())
-					{
+					if (style == null && config.trackUnknownProjectiles()) {
 						style = "Pray Magic";
 					}
 
-					if (style != null)
-					{
+					if (style != null) {
 						int ticksRemaining = (projectile.getRemainingCycles() + 29) / 30;
-						if (ticksRemaining > 0)
-						{
+						if (ticksRemaining > 0) {
 							attacks.add(new AttackState(ticksRemaining, style, "Incoming Projectile"));
 						}
 					}
@@ -238,3 +211,4 @@ public class MobCheckPlugin extends Plugin
 	}
 
 }
+// TODO
