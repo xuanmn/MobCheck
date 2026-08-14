@@ -38,7 +38,11 @@ public class MobCheckPluginUnitTest
 		setPrivateField(plugin, "config", config);
 		setPrivateField(plugin, "overlay", overlay);
 		setPrivateField(plugin, "overlayManager", overlayManager);
-		
+
+		// Default: empty projectile deque so getPriorityAttack() doesn't NPE
+		net.runelite.api.Deque<Projectile> emptyDeque = mockDeque(Collections.emptyList());
+		when(client.getProjectiles()).thenReturn(emptyDeque);
+
 		plugin.startUp();
 	}
 
@@ -73,7 +77,7 @@ public class MobCheckPluginUnitTest
 		when(client.getLocalPlayer()).thenReturn(player);
 
 		Projectile projectile = mock(Projectile.class);
-		when(projectile.getInteracting()).thenReturn(player);
+		when(projectile.getTargetActor()).thenReturn(player);
 		when(projectile.getId()).thenReturn(1374); // Jal-Zek (Magic)
 		when(projectile.getRemainingCycles()).thenReturn(121); // (121 + 29) / 30 = 5 ticks
 
@@ -95,7 +99,7 @@ public class MobCheckPluginUnitTest
 		when(client.getLocalPlayer()).thenReturn(player);
 
 		Projectile projectile = mock(Projectile.class);
-		when(projectile.getInteracting()).thenReturn(player);
+		when(projectile.getTargetActor()).thenReturn(player);
 		when(projectile.getId()).thenReturn(9999); // Unknown projectile
 		when(projectile.getRemainingCycles()).thenReturn(61); // 3 ticks
 
@@ -125,13 +129,13 @@ public class MobCheckPluginUnitTest
 
 		// Projectile 1: Magic, 5 ticks remaining
 		Projectile proj1 = mock(Projectile.class);
-		when(proj1.getInteracting()).thenReturn(player);
+		when(proj1.getTargetActor()).thenReturn(player);
 		when(proj1.getId()).thenReturn(1374); // Jal-Zek (Magic)
 		when(proj1.getRemainingCycles()).thenReturn(121); // 5 ticks
 
 		// Projectile 2: Range, 2 ticks remaining
 		Projectile proj2 = mock(Projectile.class);
-		when(proj2.getInteracting()).thenReturn(player);
+		when(proj2.getTargetActor()).thenReturn(player);
 		when(proj2.getId()).thenReturn(1376); // Jal-Xil (Range)
 		when(proj2.getRemainingCycles()).thenReturn(31); // 2 ticks
 
@@ -216,7 +220,7 @@ public class MobCheckPluginUnitTest
 		when(client.getLocalPlayer()).thenReturn(null);
 
 		Projectile projectile = mock(Projectile.class);
-		when(projectile.getInteracting()).thenReturn(null);
+		when(projectile.getTargetActor()).thenReturn(null);
 		when(projectile.getId()).thenReturn(1374);
 
 		List<Projectile> list = new ArrayList<>();
@@ -264,7 +268,7 @@ public class MobCheckPluginUnitTest
 		when(client.getLocalPlayer()).thenReturn(player);
 
 		Projectile projectile = mock(Projectile.class);
-		when(projectile.getInteracting()).thenReturn(player);
+		when(projectile.getTargetActor()).thenReturn(player);
 		when(projectile.getId()).thenReturn(2685); // Serpent Shaman / Magic attack
 		when(projectile.getRemainingCycles()).thenReturn(91); // (91 + 29) / 30 = 4 ticks
 

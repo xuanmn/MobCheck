@@ -185,9 +185,9 @@ public class MobCheckPlugin extends Plugin {
 		Player localPlayer = client.getLocalPlayer();
 
 		// Gather active projectiles targeting the player
-		if (client.getProjectiles() != null && localPlayer != null) {
+		if (localPlayer != null) {
 			for (Projectile projectile : client.getProjectiles()) {
-				if (projectile.getInteracting() == localPlayer) {
+				if (projectile.getTargetActor() == localPlayer) {
 					String style = PROJECTILE_STYLES.get(projectile.getId());
 					if (style == null && config.trackUnknownProjectiles()) {
 						style = "Pray Magic";
@@ -211,4 +211,3 @@ public class MobCheckPlugin extends Plugin {
 	}
 
 }
-// TODO

@@ -1,6 +1,7 @@
 package com.mob_check;
 
 import net.runelite.api.Client;
+import net.runelite.api.SpriteID;
 import net.runelite.api.Player;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.ui.overlay.Overlay;
@@ -12,6 +13,7 @@ import net.runelite.client.ui.overlay.components.PanelComponent;
 import javax.inject.Inject;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.Font;
 
 public class MobCheckOverlay extends Overlay
 {
@@ -20,6 +22,7 @@ public class MobCheckOverlay extends Overlay
 	private final MobCheckConfig config;
 	private final SpriteManager spriteManager;
 	private final PanelComponent panelComponent = new PanelComponent();
+	private static final Font OVERHEAD_FONT = new Font("Arial", Font.BOLD, 18);
 
 	@Inject
 	public MobCheckOverlay(Client client, MobCheckPlugin plugin, MobCheckConfig config, SpriteManager spriteManager)
@@ -82,14 +85,14 @@ public class MobCheckOverlay extends Overlay
 
 			// Draw tick countdown next to the icon
 			graphics.setColor(ticks <= config.warningThreshold() ? Color.RED : Color.WHITE);
-			graphics.setFont(new Font("Arial", Font.BOLD, 18));
+			graphics.setFont(OVERHEAD_FONT);
 			graphics.drawString(ticks + "t", point.getX() - 5, point.getY() + (sprite.getHeight() / 2) + 5);
 		}
 	}
 
-	private static final int SPRITE_PRAYER_PROTECT_FROM_MAGIC = 129;
-	private static final int SPRITE_PRAYER_PROTECT_FROM_MISSILES = 128;
-	private static final int SPRITE_PRAYER_PROTECT_FROM_MELEE = 130;
+	private static final int SPRITE_PRAYER_PROTECT_FROM_MAGIC = SpriteID.PRAYER_PROTECT_FROM_MAGIC;
+	private static final int SPRITE_PRAYER_PROTECT_FROM_MISSILES = SpriteID.PRAYER_PROTECT_FROM_MISSILES;
+	private static final int SPRITE_PRAYER_PROTECT_FROM_MELEE = SpriteID.PRAYER_PROTECT_FROM_MELEE;
 
 	private BufferedImage getPrayerSprite(String style)
 	{
