@@ -6,10 +6,17 @@ A dynamic PvM Priority Prayer Helper plugin for the [RuneLite](https://runelite.
 
 ## Features
 
-- **Overhead Countdown Overlay**: Renders the style-specific protection prayer icon (Magic, Range, Melee) and remaining tick countdown directly above the player's character. Turns red when within the warning threshold.
-- **Sidebar Info Box**: Displays a clean panel showing the sequence of upcoming active threats, attack styles, and ticks remaining.
-- **Multi-Threat Priority Queue**: Automatically sorts all concurrent incoming threats by arrival tick so you can execute tick-perfect prayer flicks (e.g. Manticore 3-hit sequences or alternating Mage/Ranger waves).
-- **Audio Alerts**: Plays a configurable sound effect when the priority prayer style switches, keeping you alerted during chaotic wave solves.
+- **Overhead Countdown & Progress Arc**: Renders the style-specific protection prayer icon (Magic, Range, Melee), visual countdown progress arc, and remaining ticks directly above your character. Color codes based on protection status and turns urgent red within the warning threshold.
+- **Prayer Book Widget Highlights**: Draws a glowing box outline directly around the required protection prayer on your Prayer Tab interface:
+  - 🟢 **Green Border**: Correct protection prayer is currently active.
+  - 🔴 **Pulsing Red Border**: Unprotected / wrong prayer active with an attack landing in $\le 1$ tick.
+- **On-Widget Tick Countdown**: Displays the exact tick count directly over the prayer button in your Prayer Tab for fast, focused clicking.
+- **Screen Danger Vignette Flash**: Flashes a red danger border around your game screen when an attack hits in $\le 1$ tick and your active prayer is wrong.
+- **Attacking NPC Outlines & True Tiles**: Highlights the model hull and ground true tile of whichever monster is currently attacking you, color-coded by incoming combat style (Cyan for Magic, Green for Range, Orange/Red for Melee).
+- **Distinct Audio Alerts & Emergency Cues**:
+  - Configurable sound effect per attack style (Magic, Range, Melee).
+  - Emergency buzzer/audio alert when unprotected against an imminent attack.
+- **Sidebar Info Box & Manticore Combo Sequence**: Displays active upcoming threats sorted by impact tick, including multi-hit rapid combo sequences (like Colosseum Manticore 3-hit cycles).
 - **Specialized Endgame Coverage**:
   - **The Inferno**:
     - **Jal-Ak (Blobs)**: Magic (1380) and Ranged (1378) projectiles, plus melee animation (7582).
@@ -36,14 +43,27 @@ A dynamic PvM Priority Prayer Helper plugin for the [RuneLite](https://runelite.
 
 Inside the RuneLite Configuration Panel under **Mob Check**, you can customize:
 
-| Setting | Default | Description |
-| :--- | :--- | :--- |
-| **Show Overhead** | `true` | Renders the prayer icon and ticks remaining above your character. |
-| **Show Info Box** | `true` | Displays the sidebar info panel with the upcoming attack queue. |
-| **Play Sound Alert** | `true` | Plays an audio cue when the priority prayer style switches. |
-| **Sound Effect ID** | `2266` | Sound effect ID to play on style switch (default: Grand Exchange plop). |
-| **Warning Threshold** | `1` | Tick threshold at which the indicator turns red for immediate urgency. |
-| **Track Unknown Projectiles** | `false` | Fallback protection prayer for unrecognized projectiles targeting the player. |
+| Section | Setting | Default | Description |
+| :--- | :--- | :--- | :--- |
+| **Overhead & HUD** | `Show Overhead Icon` | `true` | Renders prayer icon and tick countdown above character. |
+| | `Show Tick Progress Arc` | `true` | Draws circular countdown progress ring around overhead icon. |
+| | `Warning Threshold` | `1` | Tick threshold at which indicators turn red for immediate urgency. |
+| **Prayer Book Highlights** | `Highlight Prayer Button` | `true` | Highlights the required prayer directly in your Prayer Tab. |
+| | `Show Ticks on Prayer Button` | `true` | Renders tick countdown number directly on the prayer button. |
+| | `Flash Wrong Prayer` | `true` | Pulses bright red on the prayer button when unprotected at 1 tick. |
+| **Danger & Warnings** | `Flash Screen on Wrong Prayer` | `true` | Flashes red screen border if unprotected on an imminent hit. |
+| | `Danger Flash Color` | `Red (Alpha 70)` | Color and opacity of the emergency screen flash. |
+| **Audio Alerts** | `Play Sound Alert` | `true` | Plays audio cue on priority prayer changes. |
+| | `Magic Sound ID` | `2266` | Sound effect ID for incoming Magic attacks. |
+| | `Range Sound ID` | `2266` | Sound effect ID for incoming Range attacks. |
+| | `Melee Sound ID` | `2266` | Sound effect ID for incoming Melee attacks. |
+| | `Wrong Prayer Emergency Sound` | `true` | Plays emergency sound if unprotected when an attack is 1 tick away. |
+| | `Wrong Prayer Sound ID` | `2277` | Sound effect ID for wrong prayer emergency warning. |
+| **NPC Threat & World** | `Highlight Attacking NPC` | `true` | Outlines the model/hull of the monster currently attacking you. |
+| | `Highlight NPC True Tile` | `true` | Draws the ground true tile of the attacking NPC. |
+| **Info Box & Sequences** | `Show Info Box` | `true` | Displays the upcoming threat queue panel. |
+| | `Show Manticore/Combo Sequence` | `true` | Displays rapid combo sequences (e.g. Manticore 3-hit combos) in order. |
+| | `Track Unknown Projectiles` | `false` | Fallback to Pray Magic for unrecognized projectiles targeting the player. |
 
 ---
 

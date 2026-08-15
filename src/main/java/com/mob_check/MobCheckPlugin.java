@@ -5,9 +5,12 @@ import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
+import net.runelite.api.Prayer;
 import net.runelite.api.Projectile;
+import net.runelite.api.SpriteID;
 import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameTick;
+import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -15,6 +18,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import javax.inject.Inject;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -40,19 +44,99 @@ public class MobCheckPlugin extends Plugin
 	private MobCheckOverlay overlay;
 
 	@Inject
+	private MobCheckPrayerWidgetOverlay prayerWidgetOverlay;
+
+	@Inject
+	private MobCheckWorldOverlay worldOverlay;
+
+	@Inject
 	private OverlayManager overlayManager;
+
+	public enum PrayerStyle
+	{
+		MAGIC("Pray Magic", Prayer.PROTECT_FROM_MAGIC, SpriteID.PRAYER_PROTECT_FROM_MAGIC, 25, new Color(0, 200, 255)),
+		RANGE("Pray Range", Prayer.PROTECT_FROM_MISSILES, SpriteID.PRAYER_PROTECT_FROM_MISSILES, 26, new Color(0, 255, 100)),
+		MELEE("Pray Melee", Prayer.PROTECT_FROM_MELEE, SpriteID.PRAYER_PROTECT_FROM_MELEE, 27, new Color(255, 110, 0));
+
+		private final String displayName;
+		private final Prayer prayer;
+		private final int spriteId;
+		private final int childIndex;
+		private final Color color;
+
+		PrayerStyle(String displayName, Prayer prayer, int spriteId, int childIndex, Color color)
+		{
+			this.displayName = displayName;
+			this.prayer = prayer;
+			this.spriteId = spriteId;
+			this.childIndex = childIndex;
+			this.color = color;
+		}
+
+		public String getDisplayName()
+		{
+			return displayName;
+		}
+
+		public Prayer getPrayer()
+		{
+			return prayer;
+		}
+
+		public int getSpriteId()
+		{
+			return spriteId;
+		}
+
+		public int getChildIndex()
+		{
+			return childIndex;
+		}
+
+		public Color getColor()
+		{
+			return color;
+		}
+
+		public static PrayerStyle fromDisplayName(String name)
+		{
+			for (PrayerStyle style : values())
+			{
+				if (style.displayName.equalsIgnoreCase(name) || style.name().equalsIgnoreCase(name))
+				{
+					return style;
+				}
+			}
+			return MAGIC;
+		}
+	}
 
 	public static class AttackState
 	{
 		public int ticks;
+		public final int initialTicks;
 		public final String style;
+		public final PrayerStyle prayerStyle;
 		public final String npcName;
+		public final NPC sourceNpc;
+		public final Projectile projectile;
+		public final boolean isManticoreCombo;
 
 		public AttackState(int ticks, String style, String npcName)
 		{
+			this(ticks, ticks, PrayerStyle.fromDisplayName(style), npcName, null, null, false);
+		}
+
+		public AttackState(int ticks, int initialTicks, PrayerStyle prayerStyle, String npcName, NPC sourceNpc, Projectile projectile, boolean isManticoreCombo)
+		{
 			this.ticks = ticks;
-			this.style = style;
+			this.initialTicks = Math.max(initialTicks, ticks);
+			this.prayerStyle = prayerStyle != null ? prayerStyle : PrayerStyle.MAGIC;
+			this.style = this.prayerStyle.getDisplayName();
 			this.npcName = npcName;
+			this.sourceNpc = sourceNpc;
+			this.projectile = projectile;
+			this.isManticoreCombo = isManticoreCombo;
 		}
 	}
 
@@ -204,6 +288,8 @@ public class MobCheckPlugin extends Plugin
 	{
 		npcMeleeAttacks.clear();
 		overlayManager.add(overlay);
+		overlayManager.add(prayerWidgetOverlay);
+		overlayManager.add(worldOverlay);
 	}
 
 	@Override
@@ -211,6 +297,8 @@ public class MobCheckPlugin extends Plugin
 	{
 		npcMeleeAttacks.clear();
 		overlayManager.remove(overlay);
+		overlayManager.remove(prayerWidgetOverlay);
+		overlayManager.remove(worldOverlay);
 	}
 
 	@Subscribe
@@ -234,7 +322,15 @@ public class MobCheckPlugin extends Plugin
 		{
 			int warningTicks = MELEE_ANIMATIONS.get(anim);
 			String name = npc.getName() != null ? npc.getName() : "Enemy";
-			npcMeleeAttacks.put(npc.getIndex(), new AttackState(warningTicks, "Pray Melee", name));
+			npcMeleeAttacks.put(npc.getIndex(), new AttackState(
+				warningTicks,
+				warningTicks,
+				PrayerStyle.MELEE,
+				name,
+				npc,
+				null,
+				false
+			));
 		}
 	}
 
@@ -247,21 +343,64 @@ public class MobCheckPlugin extends Plugin
 			return entry.getValue().ticks <= 0;
 		});
 
-		// Sound alert on priority change
+		// Sound alert on priority change or emergency wrong-prayer warning
 		Optional<AttackState> priorityOpt = getPriorityAttack();
 		if (priorityOpt.isPresent())
 		{
 			AttackState priority = priorityOpt.get();
-			if (config.playSoundAlert() && !priority.style.equals(lastPriorityStyle))
+			boolean styleChanged = !priority.style.equals(lastPriorityStyle);
+			if (styleChanged)
 			{
-				client.playSoundEffect(config.soundEffectId());
+				playAlertSound(priority.prayerStyle);
 			}
 			lastPriorityStyle = priority.style;
+
+			// Emergency audio cue if unprotected and 1 tick away
+			if (config.playWrongPrayerAlert() && priority.ticks <= 1 && !isPrayerProtected(priority.prayerStyle))
+			{
+				client.playSoundEffect(config.wrongPrayerSoundId());
+			}
 		}
 		else
 		{
 			lastPriorityStyle = "";
 		}
+	}
+
+	public void playAlertSound(PrayerStyle style)
+	{
+		if (!config.playSoundAlert() || style == null)
+		{
+			return;
+		}
+
+		int soundId;
+		switch (style)
+		{
+			case MAGIC:
+				soundId = config.magicSoundId();
+				break;
+			case RANGE:
+				soundId = config.rangeSoundId();
+				break;
+			case MELEE:
+				soundId = config.meleeSoundId();
+				break;
+			default:
+				soundId = config.soundEffectId();
+				break;
+		}
+
+		client.playSoundEffect(soundId);
+	}
+
+	public boolean isPrayerProtected(PrayerStyle style)
+	{
+		if (client == null || style == null)
+		{
+			return false;
+		}
+		return client.isPrayerActive(style.getPrayer());
 	}
 
 	public List<AttackState> getActiveAttacks()
@@ -277,28 +416,46 @@ public class MobCheckPlugin extends Plugin
 				if (projectile.getTargetActor() == localPlayer)
 				{
 					int id = projectile.getId();
-					String style = PROJECTILE_STYLES.get(id);
-					if (style == null && config.trackUnknownProjectiles())
+					String styleName = PROJECTILE_STYLES.get(id);
+					if (styleName == null && config.trackUnknownProjectiles())
 					{
-						style = "Pray Magic";
+						styleName = "Pray Magic";
 					}
 
-					if (style != null)
+					if (styleName != null)
 					{
 						int ticksRemaining = (projectile.getRemainingCycles() + 29) / 30;
 						if (ticksRemaining > 0)
 						{
+							PrayerStyle prayerStyle = PrayerStyle.fromDisplayName(styleName);
 							String sourceName = null;
+							NPC sourceNpc = null;
 							Actor source = projectile.getSourceActor();
-							if (source != null && source.getName() != null)
+							if (source instanceof NPC)
+							{
+								sourceNpc = (NPC) source;
+								sourceName = sourceNpc.getName();
+							}
+							else if (source != null && source.getName() != null)
 							{
 								sourceName = source.getName();
 							}
+
 							if (sourceName == null)
 							{
 								sourceName = PROJECTILE_NPC_NAMES.getOrDefault(id, "Incoming Projectile");
 							}
-							attacks.add(new AttackState(ticksRemaining, style, sourceName));
+
+							boolean isManticore = (id == 2687 || id == 2688);
+							attacks.add(new AttackState(
+								ticksRemaining,
+								ticksRemaining,
+								prayerStyle,
+								sourceName,
+								sourceNpc,
+								projectile,
+								isManticore
+							));
 						}
 					}
 				}

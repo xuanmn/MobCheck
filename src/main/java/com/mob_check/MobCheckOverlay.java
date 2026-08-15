@@ -1,7 +1,6 @@
 package com.mob_check;
 
 import net.runelite.api.Client;
-import net.runelite.api.SpriteID;
 import net.runelite.api.Player;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.ui.overlay.Overlay;
@@ -9,11 +8,16 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.InfoBoxComponent;
 import net.runelite.client.ui.overlay.components.PanelComponent;
+import net.runelite.client.ui.overlay.components.TitleComponent;
 
 import javax.inject.Inject;
-import java.awt.*;
-import java.awt.image.BufferedImage;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.Stroke;
+import java.awt.image.BufferedImage;
 import java.util.List;
 
 public class MobCheckOverlay extends Overlay
@@ -23,7 +27,10 @@ public class MobCheckOverlay extends Overlay
 	private final MobCheckConfig config;
 	private final SpriteManager spriteManager;
 	private final PanelComponent panelComponent = new PanelComponent();
+
 	private static final Font OVERHEAD_FONT = new Font("Arial", Font.BOLD, 18);
+	private static final Stroke RING_STROKE = new BasicStroke(3f);
+	private static final Stroke SCREEN_FLASH_STROKE = new BasicStroke(16f);
 
 	@Inject
 	public MobCheckOverlay(Client client, MobCheckPlugin plugin, MobCheckConfig config, SpriteManager spriteManager)
@@ -39,7 +46,7 @@ public class MobCheckOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		if (!config.showInfoBox() && !config.showOverhead())
+		if (!config.showInfoBox() && !config.showOverhead() && !config.flashScreenOnWrongPrayer())
 		{
 			return null;
 		}
@@ -50,22 +57,47 @@ public class MobCheckOverlay extends Overlay
 			return null;
 		}
 
-		panelComponent.getChildren().clear();
+		MobCheckPlugin.AttackState priority = attacks.get(0);
+		boolean isProtected = plugin.isPrayerProtected(priority.prayerStyle);
+		boolean isUrgent = priority.ticks <= config.warningThreshold();
 
-		// 1. Render immediate priority attack above player's head
-		if (config.showOverhead())
+		// 1. Screen Danger Vignette Flash on Wrong Prayer (at 1 tick)
+		if (config.flashScreenOnWrongPrayer() && isUrgent && !isProtected)
 		{
-			MobCheckPlugin.AttackState priority = attacks.get(0);
-			BufferedImage sprite = getPrayerSprite(priority.style);
-			if (sprite != null)
+			int width = client.getCanvasWidth();
+			int height = client.getCanvasHeight();
+			if (width > 0 && height > 0)
 			{
-				renderAbovePlayer(graphics, sprite, priority.ticks);
+				graphics.setColor(config.dangerFlashColor());
+				graphics.setStroke(SCREEN_FLASH_STROKE);
+				graphics.drawRect(0, 0, width, height);
 			}
 		}
 
-		// 2. Render active attacks in the sidebar info panel
+		// 2. Render immediate priority attack above player's head
+		if (config.showOverhead())
+		{
+			BufferedImage sprite = getPrayerSprite(priority.prayerStyle);
+			if (sprite != null)
+			{
+				renderAbovePlayer(graphics, sprite, priority, isProtected, isUrgent);
+			}
+		}
+
+		// 3. Render active attacks in the sidebar info panel
 		if (config.showInfoBox())
 		{
+			panelComponent.getChildren().clear();
+
+			boolean hasManticoreCombo = attacks.stream().anyMatch(a -> a.isManticoreCombo);
+			if (hasManticoreCombo && config.showComboSequence())
+			{
+				panelComponent.getChildren().add(TitleComponent.builder()
+					.text("Manticore Combo")
+					.color(Color.YELLOW)
+					.build());
+			}
+
 			int count = 0;
 			for (MobCheckPlugin.AttackState attack : attacks)
 			{
@@ -73,55 +105,93 @@ public class MobCheckOverlay extends Overlay
 				{
 					break;
 				}
-				BufferedImage sprite = getPrayerSprite(attack.style);
+				BufferedImage sprite = getPrayerSprite(attack.prayerStyle);
 				if (sprite != null)
 				{
 					InfoBoxComponent infoBox = new InfoBoxComponent();
 					infoBox.setImage(sprite);
 					infoBox.setText(attack.ticks + "t");
-					infoBox.setColor(attack.ticks <= config.warningThreshold() ? Color.RED : Color.WHITE);
-					infoBox.setBackgroundColor(new Color(0, 0, 0, 150));
+
+					boolean itemProtected = plugin.isPrayerProtected(attack.prayerStyle);
+					Color textColor;
+					if (itemProtected)
+					{
+						textColor = Color.GREEN;
+					}
+					else if (attack.ticks <= config.warningThreshold())
+					{
+						textColor = Color.RED;
+					}
+					else
+					{
+						textColor = Color.WHITE;
+					}
+
+					infoBox.setColor(textColor);
+					infoBox.setBackgroundColor(new Color(0, 0, 0, 160));
 					panelComponent.getChildren().add(infoBox);
 					count++;
 				}
 			}
+			return panelComponent.render(graphics);
 		}
 
-		return config.showInfoBox() ? panelComponent.render(graphics) : null;
+		return null;
 	}
 
-	private void renderAbovePlayer(Graphics2D graphics, BufferedImage sprite, int ticks)
+	private void renderAbovePlayer(Graphics2D graphics, BufferedImage sprite, MobCheckPlugin.AttackState attack, boolean isProtected, boolean isUrgent)
 	{
 		Player player = client.getLocalPlayer();
-		if (player == null) return;
+		if (player == null)
+		{
+			return;
+		}
 
 		// Offset slightly to the side of the actual overheads
 		net.runelite.api.Point point = player.getCanvasImageLocation(sprite, player.getLogicalHeight() + 100);
 		if (point != null)
 		{
-			graphics.drawImage(sprite, point.getX() - 40, point.getY(), null);
+			int spriteX = point.getX() - 40;
+			int spriteY = point.getY();
+
+			// Draw Tick Progress Arc around icon if enabled
+			if (config.showTickProgressRing() && attack.initialTicks > 0)
+			{
+				int ringSize = Math.max(sprite.getWidth(), sprite.getHeight()) + 8;
+				int ringX = spriteX + (sprite.getWidth() - ringSize) / 2;
+				int ringY = spriteY + (sprite.getHeight() - ringSize) / 2;
+
+				// Background ring
+				graphics.setColor(new Color(0, 0, 0, 120));
+				graphics.setStroke(RING_STROKE);
+				graphics.drawOval(ringX, ringY, ringSize, ringSize);
+
+				// Active progress arc (progress increases as ticks decrease)
+				double progressRatio = (double) attack.ticks / attack.initialTicks;
+				int arcAngle = (int) (360.0 * Math.max(0.0, Math.min(1.0, progressRatio)));
+
+				Color ringColor = isProtected ? new Color(0, 255, 60) : (isUrgent ? Color.RED : attack.prayerStyle.getColor());
+				graphics.setColor(ringColor);
+				graphics.drawArc(ringX, ringY, ringSize, ringSize, 90, -arcAngle);
+			}
+
+			// Draw prayer sprite
+			graphics.drawImage(sprite, spriteX, spriteY, null);
 
 			// Draw tick countdown next to the icon
-			graphics.setColor(ticks <= config.warningThreshold() ? Color.RED : Color.WHITE);
+			Color textColor = isProtected ? new Color(0, 255, 60) : (isUrgent ? Color.RED : Color.WHITE);
+			graphics.setColor(textColor);
 			graphics.setFont(OVERHEAD_FONT);
-			graphics.drawString(ticks + "t", point.getX() - 5, point.getY() + (sprite.getHeight() / 2) + 5);
+			graphics.drawString(attack.ticks + "t", point.getX() - 5, point.getY() + (sprite.getHeight() / 2) + 5);
 		}
 	}
 
-	private static final int SPRITE_PRAYER_PROTECT_FROM_MAGIC = SpriteID.PRAYER_PROTECT_FROM_MAGIC;
-	private static final int SPRITE_PRAYER_PROTECT_FROM_MISSILES = SpriteID.PRAYER_PROTECT_FROM_MISSILES;
-	private static final int SPRITE_PRAYER_PROTECT_FROM_MELEE = SpriteID.PRAYER_PROTECT_FROM_MELEE;
-
-	private BufferedImage getPrayerSprite(String style)
+	private BufferedImage getPrayerSprite(MobCheckPlugin.PrayerStyle style)
 	{
-		int spriteId;
-		switch (style)
+		if (style == null)
 		{
-			case "Pray Magic": spriteId = SPRITE_PRAYER_PROTECT_FROM_MAGIC; break;
-			case "Pray Range": spriteId = SPRITE_PRAYER_PROTECT_FROM_MISSILES; break;
-			case "Pray Melee": spriteId = SPRITE_PRAYER_PROTECT_FROM_MELEE; break;
-			default: return null;
+			return null;
 		}
-		return spriteManager.getSprite(spriteId, 0);
+		return spriteManager.getSprite(style.getSpriteId(), 0);
 	}
 }

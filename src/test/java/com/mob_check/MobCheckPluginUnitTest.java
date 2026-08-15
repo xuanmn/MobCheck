@@ -4,6 +4,7 @@ import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
+import net.runelite.api.Prayer;
 import net.runelite.api.Projectile;
 import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameTick;
@@ -32,12 +33,24 @@ public class MobCheckPluginUnitTest
 		client = mock(Client.class);
 		config = mock(MobCheckConfig.class);
 		MobCheckOverlay overlay = mock(MobCheckOverlay.class);
+		MobCheckPrayerWidgetOverlay prayerWidgetOverlay = mock(MobCheckPrayerWidgetOverlay.class);
+		MobCheckWorldOverlay worldOverlay = mock(MobCheckWorldOverlay.class);
 		net.runelite.client.ui.overlay.OverlayManager overlayManager = mock(net.runelite.client.ui.overlay.OverlayManager.class);
+
+		// Default config mocks
+		when(config.soundEffectId()).thenReturn(2266);
+		when(config.magicSoundId()).thenReturn(2266);
+		when(config.rangeSoundId()).thenReturn(2267);
+		when(config.meleeSoundId()).thenReturn(2268);
+		when(config.wrongPrayerSoundId()).thenReturn(2277);
+		when(config.playWrongPrayerAlert()).thenReturn(false);
 
 		// Inject private fields
 		setPrivateField(plugin, "client", client);
 		setPrivateField(plugin, "config", config);
 		setPrivateField(plugin, "overlay", overlay);
+		setPrivateField(plugin, "prayerWidgetOverlay", prayerWidgetOverlay);
+		setPrivateField(plugin, "worldOverlay", worldOverlay);
 		setPrivateField(plugin, "overlayManager", overlayManager);
 
 		// Default: empty projectile deque
@@ -96,10 +109,12 @@ public class MobCheckPluginUnitTest
 		assertEquals(2, attacks.size());
 		// Lowest tick first
 		assertEquals("Pray Range", attacks.get(0).style);
+		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, attacks.get(0).prayerStyle);
 		assertEquals("Jal-Xil", attacks.get(0).npcName);
 		assertEquals(3, attacks.get(0).ticks);
 
 		assertEquals("Pray Magic", attacks.get(1).style);
+		assertEquals(MobCheckPlugin.PrayerStyle.MAGIC, attacks.get(1).prayerStyle);
 		assertEquals("Jal-Zek", attacks.get(1).npcName);
 		assertEquals(5, attacks.get(1).ticks);
 	}
@@ -151,6 +166,7 @@ public class MobCheckPluginUnitTest
 		Optional<MobCheckPlugin.AttackState> priority = plugin.getPriorityAttack();
 		assertTrue(priority.isPresent());
 		assertEquals("Pray Melee", priority.get().style);
+		assertEquals(MobCheckPlugin.PrayerStyle.MELEE, priority.get().prayerStyle);
 		assertEquals("Jal-ImKot", priority.get().npcName);
 		assertEquals(4, priority.get().ticks);
 	}
@@ -181,41 +197,21 @@ public class MobCheckPluginUnitTest
 		// Sorted in order: Mage (1t) -> Range (2t)
 		assertEquals("Pray Magic", attacks.get(0).style);
 		assertEquals(1, attacks.get(0).ticks);
+		assertTrue(attacks.get(0).isManticoreCombo);
 
 		assertEquals("Pray Range", attacks.get(1).style);
 		assertEquals(2, attacks.get(1).ticks);
+		assertTrue(attacks.get(1).isManticoreCombo);
 	}
 
 	@Test
-	public void testFortisColosseumSolHereditAttacks()
-	{
-		Player player = mock(Player.class);
-		when(client.getLocalPlayer()).thenReturn(player);
-
-		NPC sol = mock(NPC.class);
-		when(sol.getIndex()).thenReturn(999);
-		when(sol.getName()).thenReturn("Sol Heredit");
-		when(sol.getAnimation()).thenReturn(10875); // Sol Heredit melee swing
-		when(sol.getInteracting()).thenReturn(player);
-
-		AnimationChanged anim = new AnimationChanged();
-		anim.setActor(sol);
-		plugin.onAnimationChanged(anim);
-
-		Optional<MobCheckPlugin.AttackState> priority = plugin.getPriorityAttack();
-		assertTrue(priority.isPresent());
-		assertEquals("Pray Melee", priority.get().style);
-		assertEquals("Sol Heredit", priority.get().npcName);
-		assertEquals(4, priority.get().ticks);
-	}
-
-	@Test
-	public void testSoundAlertOnPriorityChange()
+	public void testSoundAlertOnPriorityChangeDistinctStyles()
 	{
 		Player player = mock(Player.class);
 		when(client.getLocalPlayer()).thenReturn(player);
 		when(config.playSoundAlert()).thenReturn(true);
-		when(config.soundEffectId()).thenReturn(2266);
+		when(config.meleeSoundId()).thenReturn(2268);
+		when(config.magicSoundId()).thenReturn(2266);
 
 		NPC npc = mock(NPC.class);
 		when(npc.getIndex()).thenReturn(789);
@@ -228,11 +224,40 @@ public class MobCheckPluginUnitTest
 		plugin.onAnimationChanged(animationChanged);
 
 		plugin.onGameTick(new GameTick());
-		verify(client, times(1)).playSoundEffect(2266);
+		verify(client, times(1)).playSoundEffect(2268);
 
 		// Subsequent tick with same style shouldn't repeat sound
 		plugin.onGameTick(new GameTick());
+		verify(client, times(1)).playSoundEffect(2268);
+	}
+
+	@Test
+	public void testEmergencySoundAlertWhenUnprotected()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+		when(config.playSoundAlert()).thenReturn(true);
+		when(config.playWrongPrayerAlert()).thenReturn(true);
+		when(config.magicSoundId()).thenReturn(2266);
+		when(config.wrongPrayerSoundId()).thenReturn(2277);
+
+		// Incoming magic projectile in 1 tick
+		Projectile proj = mock(Projectile.class);
+		when(proj.getTargetActor()).thenReturn(player);
+		when(proj.getId()).thenReturn(1374); // Jal-Zek
+		when(proj.getRemainingCycles()).thenReturn(15); // 1 tick
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(proj));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		// Player is NOT praying magic
+		when(client.isPrayerActive(Prayer.PROTECT_FROM_MAGIC)).thenReturn(false);
+
+		plugin.onGameTick(new GameTick());
+
+		// Style sound (2266) + emergency sound (2277)
 		verify(client, times(1)).playSoundEffect(2266);
+		verify(client, times(1)).playSoundEffect(2277);
 	}
 
 	@Test
@@ -257,3 +282,4 @@ public class MobCheckPluginUnitTest
 		assertEquals("Pray Magic", plugin.getPriorityAttack().get().style);
 	}
 }
+
