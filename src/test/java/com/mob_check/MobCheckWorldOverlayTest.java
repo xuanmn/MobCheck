@@ -93,4 +93,50 @@ public class MobCheckWorldOverlayTest
 		// Verified tick text drawn above NPC
 		verify(graphics, times(1)).drawString(eq("3t"), eq(100), eq(80));
 	}
+
+	@Test
+	public void testRenderDeadNpcSkipped()
+	{
+		NPC deadNpc = mock(NPC.class);
+		when(deadNpc.getIndex()).thenReturn(99);
+		when(deadNpc.isDead()).thenReturn(true);
+
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(
+			1,
+			1,
+			MobCheckPlugin.PrayerStyle.RANGE,
+			"Jal-Xil",
+			deadNpc,
+			null,
+			false
+		);
+		when(plugin.getActiveAttacks()).thenReturn(List.of(attack));
+
+		worldOverlay.render(graphics);
+
+		verify(deadNpc, never()).getConvexHull();
+	}
+
+	@Test
+	public void testRenderDeduplicatesMultipleAttacksFromSameNpc()
+	{
+		NPC npc = mock(NPC.class);
+		when(npc.getIndex()).thenReturn(50);
+		when(npc.isDead()).thenReturn(false);
+		when(npc.getLogicalHeight()).thenReturn(100);
+		when(npc.getLocalLocation()).thenReturn(new LocalPoint(500, 500));
+
+		Shape hull = new Rectangle2D.Double(0, 0, 20, 20);
+		when(npc.getConvexHull()).thenReturn(hull);
+
+		// Two simultaneous attacks from same NPC (e.g. Manticore rapid sequence)
+		MobCheckPlugin.AttackState attack1 = new MobCheckPlugin.AttackState(1, 1, MobCheckPlugin.PrayerStyle.MAGIC, "Manticore", npc, null, true);
+		MobCheckPlugin.AttackState attack2 = new MobCheckPlugin.AttackState(2, 2, MobCheckPlugin.PrayerStyle.RANGE, "Manticore", npc, null, true);
+		when(plugin.getActiveAttacks()).thenReturn(List.of(attack1, attack2));
+
+		worldOverlay.render(graphics);
+
+		// Hull only drawn once despite 2 attacks from the same NPC index
+		verify(graphics, times(1)).draw(hull);
+	}
 }

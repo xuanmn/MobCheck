@@ -103,4 +103,70 @@ public class MobCheckPrayerWidgetOverlayTest
 		verify(graphics, times(1)).fillRect(60, 120, 30, 30);
 		verify(graphics, times(1)).drawRect(59, 119, 32, 32);
 	}
+
+	@Test
+	public void testRenderFallbackToParentChildren()
+	{
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(3, "Pray Melee", "Jal-ImKot");
+		when(plugin.getPriorityAttack()).thenReturn(Optional.of(attack));
+		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.MELEE)).thenReturn(false);
+
+		// Direct widget lookup returns null
+		when(client.getWidget(anyInt(), eq(MobCheckPlugin.PrayerStyle.MELEE.getChildIndex()))).thenReturn(null);
+
+		// Parent has children array
+		Widget parent = mock(Widget.class);
+		when(parent.isHidden()).thenReturn(false);
+
+		Widget child = mock(Widget.class);
+		when(child.isHidden()).thenReturn(false);
+		when(child.getBounds()).thenReturn(new Rectangle(70, 140, 30, 30));
+
+		Widget[] children = new Widget[30];
+		children[MobCheckPlugin.PrayerStyle.MELEE.getChildIndex()] = child;
+		when(parent.getChildren()).thenReturn(children);
+
+		when(client.getWidget(net.runelite.api.widgets.ComponentID.PRAYER_PARENT)).thenReturn(parent);
+
+		overlay.render(graphics);
+
+		verify(graphics, times(1)).drawRect(70, 140, 30, 30);
+		verify(graphics, times(2)).drawString(eq("3t"), anyInt(), anyInt());
+	}
+
+	@Test
+	public void testRenderHiddenWidgetReturnsNull()
+	{
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(1, "Pray Magic", "Jal-Zek");
+		when(plugin.getPriorityAttack()).thenReturn(Optional.of(attack));
+
+		Widget widget = mock(Widget.class);
+		when(widget.isHidden()).thenReturn(true);
+		when(client.getWidget(anyInt(), eq(MobCheckPlugin.PrayerStyle.MAGIC.getChildIndex()))).thenReturn(widget);
+
+		assertNull(overlay.render(graphics));
+	}
+
+	@Test
+	public void testOnlyShowWidgetTicksWithoutBoxHighlight()
+	{
+		when(config.highlightPrayerWidget()).thenReturn(false);
+		when(config.showWidgetTicks()).thenReturn(true);
+
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(2, "Pray Magic", "Jal-Zek");
+		when(plugin.getPriorityAttack()).thenReturn(Optional.of(attack));
+		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.MAGIC)).thenReturn(true);
+
+		Widget widget = mock(Widget.class);
+		when(widget.isHidden()).thenReturn(false);
+		when(widget.getBounds()).thenReturn(new Rectangle(50, 100, 30, 30));
+		when(client.getWidget(anyInt(), eq(MobCheckPlugin.PrayerStyle.MAGIC.getChildIndex()))).thenReturn(widget);
+
+		overlay.render(graphics);
+
+		// Box is NOT drawn
+		verify(graphics, never()).drawRect(anyInt(), anyInt(), anyInt(), anyInt());
+		// Ticks are drawn
+		verify(graphics, times(2)).drawString(eq("2t"), anyInt(), anyInt());
+	}
 }
