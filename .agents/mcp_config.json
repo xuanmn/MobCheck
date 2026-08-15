@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "runelite-osrs-docs": {
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/.agents/plugins/runelite-osrs-docs/src/index.js"
+      ]
+    }
+  }
+}

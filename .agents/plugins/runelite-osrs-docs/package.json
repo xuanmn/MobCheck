@@ -1,0 +1,17 @@
+{
+  "name": "runelite-osrs-docs-mcp",
+  "version": "1.0.0",
+  "description": "MCP server providing RuneLite API Javadocs and OSRS Wiki documentation search and retrieval.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "runelite-osrs-docs-mcp": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node test/test-tools.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.0"
+  }
+}
