@@ -14,6 +14,7 @@ import javax.inject.Inject;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.Font;
+import java.util.List;
 
 public class MobCheckOverlay extends Overlay
 {
@@ -43,31 +44,48 @@ public class MobCheckOverlay extends Overlay
 			return null;
 		}
 
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		if (attacks.isEmpty())
+		{
+			return null;
+		}
+
 		panelComponent.getChildren().clear();
 
-		plugin.getPriorityAttack().ifPresent(priority -> {
+		// 1. Render immediate priority attack above player's head
+		if (config.showOverhead())
+		{
+			MobCheckPlugin.AttackState priority = attacks.get(0);
 			BufferedImage sprite = getPrayerSprite(priority.style);
-
 			if (sprite != null)
 			{
-				// 1. Add to the side panel if enabled
-				if (config.showInfoBox())
+				renderAbovePlayer(graphics, sprite, priority.ticks);
+			}
+		}
+
+		// 2. Render active attacks in the sidebar info panel
+		if (config.showInfoBox())
+		{
+			int count = 0;
+			for (MobCheckPlugin.AttackState attack : attacks)
+			{
+				if (count >= 4) // Show up to top 4 incoming attacks
+				{
+					break;
+				}
+				BufferedImage sprite = getPrayerSprite(attack.style);
+				if (sprite != null)
 				{
 					InfoBoxComponent infoBox = new InfoBoxComponent();
 					infoBox.setImage(sprite);
-					infoBox.setText(priority.ticks + "t");
-					infoBox.setColor(priority.ticks <= config.warningThreshold() ? Color.RED : Color.WHITE);
+					infoBox.setText(attack.ticks + "t");
+					infoBox.setColor(attack.ticks <= config.warningThreshold() ? Color.RED : Color.WHITE);
 					infoBox.setBackgroundColor(new Color(0, 0, 0, 150));
 					panelComponent.getChildren().add(infoBox);
-				}
-
-				// 2. Render above player's head if enabled
-				if (config.showOverhead())
-				{
-					renderAbovePlayer(graphics, sprite, priority.ticks);
+					count++;
 				}
 			}
-		});
+		}
 
 		return config.showInfoBox() ? panelComponent.render(graphics) : null;
 	}

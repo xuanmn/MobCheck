@@ -11,7 +11,8 @@ import org.junit.Test;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.util.Optional;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -58,13 +59,13 @@ public class MobCheckOverlayTest
 		when(config.showOverhead()).thenReturn(false);
 
 		assertNull(overlay.render(graphics));
-		verify(plugin, never()).getPriorityAttack();
+		verify(plugin, never()).getActiveAttacks();
 	}
 
 	@Test
 	public void testRenderNoPriorityAttackReturnsNull()
 	{
-		when(plugin.getPriorityAttack()).thenReturn(Optional.empty());
+		when(plugin.getActiveAttacks()).thenReturn(Collections.emptyList());
 
 		assertNull(overlay.render(graphics));
 	}
@@ -73,7 +74,7 @@ public class MobCheckOverlayTest
 	public void testRenderPriorityAttackWithInfoBoxAndOverhead()
 	{
 		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(1, "Pray Magic", "Jal-Zek");
-		when(plugin.getPriorityAttack()).thenReturn(Optional.of(state));
+		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
 
 		BufferedImage sprite = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
 		when(spriteManager.getSprite(anyInt(), eq(0))).thenReturn(sprite);
