@@ -444,6 +444,100 @@ public class MobCheckPluginUnitTest
 	}
 
 	@Test
+	public void testPhantomMuspahAttacksAndMeleeAnimation()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		// Phantom Muspah Magic Projectile (2329)
+		Projectile muspahMage = mock(Projectile.class);
+		when(muspahMage.getTargetActor()).thenReturn(player);
+		when(muspahMage.getId()).thenReturn(2329);
+		when(muspahMage.getRemainingCycles()).thenReturn(60); // 2 ticks
+
+		// Phantom Muspah Range Projectile (2330)
+		Projectile muspahRange = mock(Projectile.class);
+		when(muspahRange.getTargetActor()).thenReturn(player);
+		when(muspahRange.getId()).thenReturn(2330);
+		when(muspahRange.getRemainingCycles()).thenReturn(90); // 3 ticks
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(muspahMage, muspahRange));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(2, attacks.size());
+		assertEquals("Phantom Muspah (Magic)", attacks.get(0).npcName);
+		assertEquals(MobCheckPlugin.PrayerStyle.MAGIC, attacks.get(0).prayerStyle);
+		assertEquals(2, attacks.get(0).ticks);
+
+		assertEquals("Phantom Muspah (Range)", attacks.get(1).npcName);
+		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, attacks.get(1).prayerStyle);
+		assertEquals(3, attacks.get(1).ticks);
+
+		// Muspah Melee Animation (9922)
+		NPC muspah = mock(NPC.class);
+		when(muspah.getIndex()).thenReturn(701);
+		when(muspah.getName()).thenReturn("Phantom Muspah");
+		when(muspah.getAnimation()).thenReturn(9922);
+		when(muspah.getInteracting()).thenReturn(player);
+
+		AnimationChanged anim = new AnimationChanged();
+		anim.setActor(muspah);
+		plugin.onAnimationChanged(anim);
+
+		List<MobCheckPlugin.AttackState> allAttacks = plugin.getActiveAttacks();
+		assertEquals(3, allAttacks.size());
+		assertTrue(allAttacks.stream().anyMatch(a -> a.prayerStyle == MobCheckPlugin.PrayerStyle.MELEE && a.npcName.equals("Phantom Muspah")));
+	}
+
+	@Test
+	public void testTormentedDemonsAttacksAndMeleeAnimation()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		// Tormented Demon Magic Projectile (1885)
+		Projectile tdMage = mock(Projectile.class);
+		when(tdMage.getTargetActor()).thenReturn(player);
+		when(tdMage.getId()).thenReturn(1885);
+		when(tdMage.getRemainingCycles()).thenReturn(30); // 1 tick
+
+		// Tormented Demon Range Projectile (1884)
+		Projectile tdRange = mock(Projectile.class);
+		when(tdRange.getTargetActor()).thenReturn(player);
+		when(tdRange.getId()).thenReturn(1884);
+		when(tdRange.getRemainingCycles()).thenReturn(75); // 3 ticks
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(tdMage, tdRange));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(2, attacks.size());
+		assertEquals("Tormented Demon (Magic)", attacks.get(0).npcName);
+		assertEquals(MobCheckPlugin.PrayerStyle.MAGIC, attacks.get(0).prayerStyle);
+		assertEquals(1, attacks.get(0).ticks);
+
+		assertEquals("Tormented Demon (Range)", attacks.get(1).npcName);
+		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, attacks.get(1).prayerStyle);
+		assertEquals(3, attacks.get(1).ticks);
+
+		// Tormented Demon Melee Animation (10922)
+		NPC td = mock(NPC.class);
+		when(td.getIndex()).thenReturn(801);
+		when(td.getName()).thenReturn("Tormented Demon");
+		when(td.getAnimation()).thenReturn(10922);
+		when(td.getInteracting()).thenReturn(player);
+
+		AnimationChanged anim = new AnimationChanged();
+		anim.setActor(td);
+		plugin.onAnimationChanged(anim);
+
+		List<MobCheckPlugin.AttackState> allAttacks = plugin.getActiveAttacks();
+		assertEquals(3, allAttacks.size());
+		assertTrue(allAttacks.stream().anyMatch(a -> a.prayerStyle == MobCheckPlugin.PrayerStyle.MELEE && a.npcName.equals("Tormented Demon")));
+	}
+
+	@Test
 	public void testIgnoreProjectilesAndAnimationsNotTargetingPlayer()
 	{
 		Player player = mock(Player.class);

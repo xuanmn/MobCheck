@@ -244,6 +244,18 @@ public class MobCheckPlugin extends Plugin
 		PROJECTILE_NPC_NAMES.put(1220, "Commander Zilyana");
 		PROJECTILE_STYLES.put(1211, "Pray Magic");
 		PROJECTILE_NPC_NAMES.put(1211, "K'ril Tsutsaroth");
+
+		// Phantom Muspah
+		PROJECTILE_STYLES.put(2329, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(2329, "Phantom Muspah (Magic)");
+		PROJECTILE_STYLES.put(2330, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(2330, "Phantom Muspah (Range)");
+
+		// Tormented Demons
+		PROJECTILE_STYLES.put(1885, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(1885, "Tormented Demon (Magic)");
+		PROJECTILE_STYLES.put(1884, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(1884, "Tormented Demon (Range)");
 	}
 
 	// Comprehensive animation mappings (for Melee/Instant attacks)
@@ -275,6 +287,9 @@ public class MobCheckPlugin extends Plugin
 		MELEE_ANIMATIONS.put(6948, 4); // K'ril Tsutsaroth Melee
 		MELEE_ANIMATIONS.put(4492, 4); // Cerberus Melee
 		MELEE_ANIMATIONS.put(7226, 4); // Demonic Gorilla Melee
+		MELEE_ANIMATIONS.put(9920, 4); // Phantom Muspah Melee attack
+		MELEE_ANIMATIONS.put(9922, 4); // Phantom Muspah Melee swipe
+		MELEE_ANIMATIONS.put(10922, 4); // Tormented Demon Melee claw attack
 	}
 
 	@Provides

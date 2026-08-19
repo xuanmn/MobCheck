@@ -35,7 +35,15 @@ A dynamic PvM Priority Prayer Helper plugin for the [RuneLite](https://runelite.
     - **Fremennik Warband**: Berserker melee animation (10873), Archer projectile (15), Seer magic projectile (160).
     - **Shockwave Colossus**: Melee shockwave animation (10874).
     - **Sol Heredit**: Melee swing animations (10875, 10876, 10877) and special projectile (2689).
-  - **Additional PvM Support**: Zulrah, Vorkath, Cerberus, Alchemical Hydra, Hunllef (The Gauntlet), Demonic Gorillas, and standard slayer monsters.
+  - **Tormented Demons**:
+    - Magic projectile (1885).
+    - Ranged projectile (1884).
+    - Melee claw attack animation (10922).
+  - **Phantom Muspah**:
+    - Corruption Magic projectile (2329).
+    - Ranged attack projectile (2330).
+    - Melee attack / swipe animations (9920, 9922).
+  - **Additional PvM Support**: Zulrah, Vorkath, Cerberus, Alchemical Hydra, Hunllef (The Gauntlet), Demonic Gorillas, God Wars Dungeon bosses, and standard slayer monsters.
 
 ---
 
