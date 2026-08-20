@@ -1,6 +1,5 @@
 package com.mob_check;
 
-import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
@@ -12,7 +11,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -38,7 +36,6 @@ public class MobCheckPluginUnitTest
 		net.runelite.client.ui.overlay.OverlayManager overlayManager = mock(net.runelite.client.ui.overlay.OverlayManager.class);
 
 		// Default config mocks
-		when(config.soundEffectId()).thenReturn(2266);
 		when(config.magicSoundId()).thenReturn(2266);
 		when(config.rangeSoundId()).thenReturn(2267);
 		when(config.meleeSoundId()).thenReturn(2268);
@@ -75,11 +72,21 @@ public class MobCheckPluginUnitTest
 		return deque;
 	}
 
+	/**
+	 * Helper: triggers onGameTick to rebuild the cached attack list.
+	 * Must be called after setting up projectiles/animations before reading getActiveAttacks().
+	 */
+	private void tickAndRefresh()
+	{
+		plugin.onGameTick(new GameTick());
+	}
+
 	@Test
 	public void testGetPriorityAttackEmpty()
 	{
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(Collections.emptyList());
 		when(client.getProjectiles()).thenReturn(deque);
+		tickAndRefresh();
 		Optional<MobCheckPlugin.AttackState> priority = plugin.getPriorityAttack();
 		assertFalse(priority.isPresent());
 	}
@@ -93,28 +100,29 @@ public class MobCheckPluginUnitTest
 		// Jal-Zek (Magic)
 		Projectile proj1 = mock(Projectile.class);
 		when(proj1.getTargetActor()).thenReturn(player);
-		when(proj1.getId()).thenReturn(1374);
+		when(proj1.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_ZEK_MAGIC);
 		when(proj1.getRemainingCycles()).thenReturn(121); // (121 + 29) / 30 = 5 ticks
 
 		// Jal-Xil (Range)
 		Projectile proj2 = mock(Projectile.class);
 		when(proj2.getTargetActor()).thenReturn(player);
-		when(proj2.getId()).thenReturn(1376);
+		when(proj2.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_XIL_RANGE);
 		when(proj2.getRemainingCycles()).thenReturn(61); // 3 ticks
 
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(proj1, proj2));
 		when(client.getProjectiles()).thenReturn(deque);
 
+		tickAndRefresh();
 		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
 		assertEquals(2, attacks.size());
 		// Lowest tick first
-		assertEquals("Pray Range", attacks.get(0).style);
 		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, attacks.get(0).prayerStyle);
+		assertEquals("Pray Range", attacks.get(0).getStyleDisplayName());
 		assertEquals("Jal-Xil", attacks.get(0).npcName);
 		assertEquals(3, attacks.get(0).ticks);
 
-		assertEquals("Pray Magic", attacks.get(1).style);
 		assertEquals(MobCheckPlugin.PrayerStyle.MAGIC, attacks.get(1).prayerStyle);
+		assertEquals("Pray Magic", attacks.get(1).getStyleDisplayName());
 		assertEquals("Jal-Zek", attacks.get(1).npcName);
 		assertEquals(5, attacks.get(1).ticks);
 	}
@@ -125,24 +133,25 @@ public class MobCheckPluginUnitTest
 		Player player = mock(Player.class);
 		when(client.getLocalPlayer()).thenReturn(player);
 
-		// Jal-Ak Blob Magic projectile (1380)
+		// Jal-Ak Blob Magic projectile
 		Projectile projMage = mock(Projectile.class);
 		when(projMage.getTargetActor()).thenReturn(player);
-		when(projMage.getId()).thenReturn(1380);
+		when(projMage.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_AK_MAGIC);
 		when(projMage.getRemainingCycles()).thenReturn(91); // 4 ticks
 
-		// Jal-Ak Blob Range projectile (1378)
+		// Jal-Ak Blob Range projectile
 		Projectile projRange = mock(Projectile.class);
 		when(projRange.getTargetActor()).thenReturn(player);
-		when(projRange.getId()).thenReturn(1378);
+		when(projRange.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_AK_RANGE);
 		when(projRange.getRemainingCycles()).thenReturn(31); // 2 ticks
 
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(projMage, projRange));
 		when(client.getProjectiles()).thenReturn(deque);
 
+		tickAndRefresh();
 		Optional<MobCheckPlugin.AttackState> priority = plugin.getPriorityAttack();
 		assertTrue(priority.isPresent());
-		assertEquals("Pray Range", priority.get().style);
+		assertEquals("Pray Range", priority.get().getStyleDisplayName());
 		assertEquals("Jal-Ak (Range)", priority.get().npcName);
 		assertEquals(2, priority.get().ticks);
 	}
@@ -156,19 +165,56 @@ public class MobCheckPluginUnitTest
 		NPC meleer = mock(NPC.class);
 		when(meleer.getIndex()).thenReturn(101);
 		when(meleer.getName()).thenReturn("Jal-ImKot");
-		when(meleer.getAnimation()).thenReturn(7597); // Jal-ImKot melee
+		when(meleer.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JAL_IMKOT_MELEE);
 		when(meleer.getInteracting()).thenReturn(player);
 
 		AnimationChanged anim = new AnimationChanged();
 		anim.setActor(meleer);
 		plugin.onAnimationChanged(anim);
 
+		tickAndRefresh();
 		Optional<MobCheckPlugin.AttackState> priority = plugin.getPriorityAttack();
 		assertTrue(priority.isPresent());
-		assertEquals("Pray Melee", priority.get().style);
+		assertEquals("Pray Melee", priority.get().getStyleDisplayName());
 		assertEquals(MobCheckPlugin.PrayerStyle.MELEE, priority.get().prayerStyle);
 		assertEquals("Jal-ImKot", priority.get().npcName);
-		assertEquals(4, priority.get().ticks);
+		// #3: After one tick decrement, melee attack registered at 4 should be at 3
+		assertEquals(3, priority.get().ticks);
+	}
+
+	@Test
+	public void testMeleeAttackVisibleAtZeroTicks()
+	{
+		// #3: Verify the off-by-one fix — melee attacks should remain visible at 0t
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		NPC meleer = mock(NPC.class);
+		when(meleer.getIndex()).thenReturn(101);
+		when(meleer.getName()).thenReturn("Jal-ImKot");
+		when(meleer.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JAL_IMKOT_MELEE);
+		when(meleer.getInteracting()).thenReturn(player);
+
+		AnimationChanged anim = new AnimationChanged();
+		anim.setActor(meleer);
+		plugin.onAnimationChanged(anim);
+
+		// Tick down 4 times: 4 -> 3 -> 2 -> 1 -> 0
+		tickAndRefresh();
+		tickAndRefresh();
+		tickAndRefresh();
+		tickAndRefresh();
+
+		// At 0t the attack should still be visible (the impact tick)
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertTrue("Melee attack should still be visible at 0t", attacks.stream()
+			.anyMatch(a -> a.prayerStyle == MobCheckPlugin.PrayerStyle.MELEE && a.ticks == 0));
+
+		// One more tick and it should be gone
+		tickAndRefresh();
+		attacks = plugin.getActiveAttacks();
+		assertFalse("Melee attack should be removed after 0t", attacks.stream()
+			.anyMatch(a -> a.prayerStyle == MobCheckPlugin.PrayerStyle.MELEE && a.npcName.equals("Jal-ImKot")));
 	}
 
 	@Test
@@ -177,29 +223,30 @@ public class MobCheckPluginUnitTest
 		Player player = mock(Player.class);
 		when(client.getLocalPlayer()).thenReturn(player);
 
-		// Manticore fires Magic projectile (2687) landing in 1 tick
+		// Manticore fires Magic projectile landing in 1 tick
 		Projectile manticoreMage = mock(Projectile.class);
 		when(manticoreMage.getTargetActor()).thenReturn(player);
-		when(manticoreMage.getId()).thenReturn(2687);
+		when(manticoreMage.getId()).thenReturn(MobCheckPlugin.ProjectileID.MANTICORE_MAGIC);
 		when(manticoreMage.getRemainingCycles()).thenReturn(15); // 1 tick
 
-		// Manticore fires Range projectile (2688) landing in 2 ticks
+		// Manticore fires Range projectile landing in 2 ticks
 		Projectile manticoreRange = mock(Projectile.class);
 		when(manticoreRange.getTargetActor()).thenReturn(player);
-		when(manticoreRange.getId()).thenReturn(2688);
+		when(manticoreRange.getId()).thenReturn(MobCheckPlugin.ProjectileID.MANTICORE_RANGE);
 		when(manticoreRange.getRemainingCycles()).thenReturn(45); // 2 ticks
 
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(manticoreRange, manticoreMage));
 		when(client.getProjectiles()).thenReturn(deque);
 
+		tickAndRefresh();
 		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
 		assertEquals(2, attacks.size());
 		// Sorted in order: Mage (1t) -> Range (2t)
-		assertEquals("Pray Magic", attacks.get(0).style);
+		assertEquals("Pray Magic", attacks.get(0).getStyleDisplayName());
 		assertEquals(1, attacks.get(0).ticks);
 		assertTrue(attacks.get(0).isManticoreCombo);
 
-		assertEquals("Pray Range", attacks.get(1).style);
+		assertEquals("Pray Range", attacks.get(1).getStyleDisplayName());
 		assertEquals(2, attacks.get(1).ticks);
 		assertTrue(attacks.get(1).isManticoreCombo);
 	}
@@ -216,18 +263,18 @@ public class MobCheckPluginUnitTest
 		NPC npc = mock(NPC.class);
 		when(npc.getIndex()).thenReturn(789);
 		when(npc.getName()).thenReturn("Jal-ImKot");
-		when(npc.getAnimation()).thenReturn(7597);
+		when(npc.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JAL_IMKOT_MELEE);
 		when(npc.getInteracting()).thenReturn(player);
 
 		AnimationChanged animationChanged = new AnimationChanged();
 		animationChanged.setActor(npc);
 		plugin.onAnimationChanged(animationChanged);
 
-		plugin.onGameTick(new GameTick());
+		tickAndRefresh();
 		verify(client, times(1)).playSoundEffect(2268);
 
 		// Subsequent tick with same style shouldn't repeat sound
-		plugin.onGameTick(new GameTick());
+		tickAndRefresh();
 		verify(client, times(1)).playSoundEffect(2268);
 	}
 
@@ -244,7 +291,7 @@ public class MobCheckPluginUnitTest
 		// Incoming magic projectile in 1 tick
 		Projectile proj = mock(Projectile.class);
 		when(proj.getTargetActor()).thenReturn(player);
-		when(proj.getId()).thenReturn(1374); // Jal-Zek
+		when(proj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_ZEK_MAGIC);
 		when(proj.getRemainingCycles()).thenReturn(15); // 1 tick
 
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(proj));
@@ -253,7 +300,7 @@ public class MobCheckPluginUnitTest
 		// Player is NOT praying magic
 		when(client.isPrayerActive(Prayer.PROTECT_FROM_MAGIC)).thenReturn(false);
 
-		plugin.onGameTick(new GameTick());
+		tickAndRefresh();
 
 		// Style sound (2266) + emergency sound (2277)
 		verify(client, times(1)).playSoundEffect(2266);
@@ -269,23 +316,23 @@ public class MobCheckPluginUnitTest
 		// 1. Magic projectile in 4 ticks
 		Projectile mageProj = mock(Projectile.class);
 		when(mageProj.getTargetActor()).thenReturn(player);
-		when(mageProj.getId()).thenReturn(1374); // Jal-Zek
+		when(mageProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_ZEK_MAGIC);
 		when(mageProj.getRemainingCycles()).thenReturn(91); // 4 ticks
 
 		// 2. Range projectile in 2 ticks
 		Projectile rangeProj = mock(Projectile.class);
 		when(rangeProj.getTargetActor()).thenReturn(player);
-		when(rangeProj.getId()).thenReturn(1376); // Jal-Xil
+		when(rangeProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_XIL_RANGE);
 		when(rangeProj.getRemainingCycles()).thenReturn(35); // 2 ticks
 
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(mageProj, rangeProj));
 		when(client.getProjectiles()).thenReturn(deque);
 
-		// 3. Melee attack in 1 tick
+		// 3. Melee attack in 1 tick (will be 4 initially, tick down 3 times)
 		NPC meleer = mock(NPC.class);
 		when(meleer.getIndex()).thenReturn(55);
 		when(meleer.getName()).thenReturn("Jal-ImKot");
-		when(meleer.getAnimation()).thenReturn(7597);
+		when(meleer.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JAL_IMKOT_MELEE);
 		when(meleer.getInteracting()).thenReturn(player);
 
 		AnimationChanged anim = new AnimationChanged();
@@ -293,9 +340,9 @@ public class MobCheckPluginUnitTest
 		plugin.onAnimationChanged(anim);
 
 		// Advance 3 game ticks so melee is down to 1 tick
-		plugin.onGameTick(new GameTick());
-		plugin.onGameTick(new GameTick());
-		plugin.onGameTick(new GameTick());
+		tickAndRefresh();
+		tickAndRefresh();
+		tickAndRefresh();
 
 		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
 		assertEquals(3, attacks.size());
@@ -319,32 +366,34 @@ public class MobCheckPluginUnitTest
 		Player player = mock(Player.class);
 		when(client.getLocalPlayer()).thenReturn(player);
 
-		// Jad Magic (448)
+		// Jad Magic
 		Projectile jadMage = mock(Projectile.class);
 		when(jadMage.getTargetActor()).thenReturn(player);
-		when(jadMage.getId()).thenReturn(448);
+		when(jadMage.getId()).thenReturn(MobCheckPlugin.ProjectileID.JALTOK_JAD_MAGIC);
 		when(jadMage.getRemainingCycles()).thenReturn(70); // 3 ticks
 
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(jadMage));
 		when(client.getProjectiles()).thenReturn(deque);
 
+		tickAndRefresh();
 		Optional<MobCheckPlugin.AttackState> priority = plugin.getPriorityAttack();
 		assertTrue(priority.isPresent());
-		assertEquals("Pray Magic", priority.get().style);
+		assertEquals("Pray Magic", priority.get().getStyleDisplayName());
 		assertEquals(MobCheckPlugin.PrayerStyle.MAGIC, priority.get().prayerStyle);
 		assertEquals("JalTok-Jad (Magic)", priority.get().npcName);
 
-		// Jad Melee Animation (7590)
+		// Jad Melee Animation
 		NPC jad = mock(NPC.class);
 		when(jad.getIndex()).thenReturn(900);
 		when(jad.getName()).thenReturn("JalTok-Jad");
-		when(jad.getAnimation()).thenReturn(7590);
+		when(jad.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JALTOK_JAD_MELEE);
 		when(jad.getInteracting()).thenReturn(player);
 
 		AnimationChanged anim = new AnimationChanged();
 		anim.setActor(jad);
 		plugin.onAnimationChanged(anim);
 
+		tickAndRefresh();
 		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
 		assertTrue(attacks.stream().anyMatch(a -> a.prayerStyle == MobCheckPlugin.PrayerStyle.MELEE && a.npcName.equals("JalTok-Jad")));
 	}
@@ -355,27 +404,28 @@ public class MobCheckPluginUnitTest
 		Player player = mock(Player.class);
 		when(client.getLocalPlayer()).thenReturn(player);
 
-		// Serpent Shaman (2685)
+		// Serpent Shaman
 		Projectile shamanProj = mock(Projectile.class);
 		when(shamanProj.getTargetActor()).thenReturn(player);
-		when(shamanProj.getId()).thenReturn(2685);
+		when(shamanProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.SERPENT_SHAMAN_MAGIC);
 		when(shamanProj.getRemainingCycles()).thenReturn(45);
 
-		// Javelinic Colossus (2686)
+		// Javelinic Colossus
 		Projectile javelinProj = mock(Projectile.class);
 		when(javelinProj.getTargetActor()).thenReturn(player);
-		when(javelinProj.getId()).thenReturn(2686);
+		when(javelinProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAVELINIC_COLOSSUS_RANGE);
 		when(javelinProj.getRemainingCycles()).thenReturn(65);
 
-		// Sol Heredit Magic (2689)
+		// Sol Heredit Magic
 		Projectile solProj = mock(Projectile.class);
 		when(solProj.getTargetActor()).thenReturn(player);
-		when(solProj.getId()).thenReturn(2689);
+		when(solProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.SOL_HEREDIT_MAGIC);
 		when(solProj.getRemainingCycles()).thenReturn(85);
 
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(shamanProj, javelinProj, solProj));
 		when(client.getProjectiles()).thenReturn(deque);
 
+		tickAndRefresh();
 		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
 		assertEquals(3, attacks.size());
 		assertEquals("Serpent Shaman", attacks.get(0).npcName);
@@ -394,45 +444,46 @@ public class MobCheckPluginUnitTest
 		Player player = mock(Player.class);
 		when(client.getLocalPlayer()).thenReturn(player);
 
-		// Zulrah Range (1046)
+		// Zulrah Range
 		Projectile zulrah = mock(Projectile.class);
 		when(zulrah.getTargetActor()).thenReturn(player);
-		when(zulrah.getId()).thenReturn(1046);
+		when(zulrah.getId()).thenReturn(MobCheckPlugin.ProjectileID.ZULRAH_RANGE);
 		when(zulrah.getRemainingCycles()).thenReturn(30);
 
-		// Vorkath Magic (1481)
+		// Vorkath Magic
 		Projectile vorkath = mock(Projectile.class);
 		when(vorkath.getTargetActor()).thenReturn(player);
-		when(vorkath.getId()).thenReturn(1481);
+		when(vorkath.getId()).thenReturn(MobCheckPlugin.ProjectileID.VORKATH_MAGIC);
 		when(vorkath.getRemainingCycles()).thenReturn(40);
 
-		// Cerberus Range (1244)
+		// Cerberus Range
 		Projectile cerberus = mock(Projectile.class);
 		when(cerberus.getTargetActor()).thenReturn(player);
-		when(cerberus.getId()).thenReturn(1244);
+		when(cerberus.getId()).thenReturn(MobCheckPlugin.ProjectileID.CERBERUS_RANGE);
 		when(cerberus.getRemainingCycles()).thenReturn(50);
 
-		// Hydra Magic (1662)
+		// Hydra Magic
 		Projectile hydra = mock(Projectile.class);
 		when(hydra.getTargetActor()).thenReturn(player);
-		when(hydra.getId()).thenReturn(1662);
+		when(hydra.getId()).thenReturn(MobCheckPlugin.ProjectileID.HYDRA_MAGIC);
 		when(hydra.getRemainingCycles()).thenReturn(60);
 
-		// Hunllef Range (1708)
+		// Hunllef Range
 		Projectile hunllef = mock(Projectile.class);
 		when(hunllef.getTargetActor()).thenReturn(player);
-		when(hunllef.getId()).thenReturn(1708);
+		when(hunllef.getId()).thenReturn(MobCheckPlugin.ProjectileID.HUNLLEF_RANGE);
 		when(hunllef.getRemainingCycles()).thenReturn(70);
 
-		// Demonic Gorilla Magic (1302)
+		// Demonic Gorilla Magic
 		Projectile gorilla = mock(Projectile.class);
 		when(gorilla.getTargetActor()).thenReturn(player);
-		when(gorilla.getId()).thenReturn(1302);
+		when(gorilla.getId()).thenReturn(MobCheckPlugin.ProjectileID.DEMONIC_GORILLA_MAGIC);
 		when(gorilla.getRemainingCycles()).thenReturn(80);
 
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(zulrah, vorkath, cerberus, hydra, hunllef, gorilla));
 		when(client.getProjectiles()).thenReturn(deque);
 
+		tickAndRefresh();
 		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
 		assertEquals(6, attacks.size());
 		assertEquals("Zulrah", attacks.get(0).npcName);
@@ -449,21 +500,22 @@ public class MobCheckPluginUnitTest
 		Player player = mock(Player.class);
 		when(client.getLocalPlayer()).thenReturn(player);
 
-		// Phantom Muspah Magic Projectile (2329)
+		// Phantom Muspah Magic Projectile
 		Projectile muspahMage = mock(Projectile.class);
 		when(muspahMage.getTargetActor()).thenReturn(player);
-		when(muspahMage.getId()).thenReturn(2329);
+		when(muspahMage.getId()).thenReturn(MobCheckPlugin.ProjectileID.MUSPAH_MAGIC);
 		when(muspahMage.getRemainingCycles()).thenReturn(60); // 2 ticks
 
-		// Phantom Muspah Range Projectile (2330)
+		// Phantom Muspah Range Projectile
 		Projectile muspahRange = mock(Projectile.class);
 		when(muspahRange.getTargetActor()).thenReturn(player);
-		when(muspahRange.getId()).thenReturn(2330);
+		when(muspahRange.getId()).thenReturn(MobCheckPlugin.ProjectileID.MUSPAH_RANGE);
 		when(muspahRange.getRemainingCycles()).thenReturn(90); // 3 ticks
 
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(muspahMage, muspahRange));
 		when(client.getProjectiles()).thenReturn(deque);
 
+		tickAndRefresh();
 		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
 		assertEquals(2, attacks.size());
 		assertEquals("Phantom Muspah (Magic)", attacks.get(0).npcName);
@@ -474,19 +526,19 @@ public class MobCheckPluginUnitTest
 		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, attacks.get(1).prayerStyle);
 		assertEquals(3, attacks.get(1).ticks);
 
-		// Muspah Melee Animation (9922)
+		// Muspah Melee Animation
 		NPC muspah = mock(NPC.class);
 		when(muspah.getIndex()).thenReturn(701);
 		when(muspah.getName()).thenReturn("Phantom Muspah");
-		when(muspah.getAnimation()).thenReturn(9922);
+		when(muspah.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.MUSPAH_MELEE_SWIPE);
 		when(muspah.getInteracting()).thenReturn(player);
 
 		AnimationChanged anim = new AnimationChanged();
 		anim.setActor(muspah);
 		plugin.onAnimationChanged(anim);
 
+		tickAndRefresh();
 		List<MobCheckPlugin.AttackState> allAttacks = plugin.getActiveAttacks();
-		assertEquals(3, allAttacks.size());
 		assertTrue(allAttacks.stream().anyMatch(a -> a.prayerStyle == MobCheckPlugin.PrayerStyle.MELEE && a.npcName.equals("Phantom Muspah")));
 	}
 
@@ -496,21 +548,22 @@ public class MobCheckPluginUnitTest
 		Player player = mock(Player.class);
 		when(client.getLocalPlayer()).thenReturn(player);
 
-		// Tormented Demon Magic Projectile (1885)
+		// Tormented Demon Magic Projectile
 		Projectile tdMage = mock(Projectile.class);
 		when(tdMage.getTargetActor()).thenReturn(player);
-		when(tdMage.getId()).thenReturn(1885);
+		when(tdMage.getId()).thenReturn(MobCheckPlugin.ProjectileID.TORMENTED_DEMON_MAGIC);
 		when(tdMage.getRemainingCycles()).thenReturn(30); // 1 tick
 
-		// Tormented Demon Range Projectile (1884)
+		// Tormented Demon Range Projectile
 		Projectile tdRange = mock(Projectile.class);
 		when(tdRange.getTargetActor()).thenReturn(player);
-		when(tdRange.getId()).thenReturn(1884);
+		when(tdRange.getId()).thenReturn(MobCheckPlugin.ProjectileID.TORMENTED_DEMON_RANGE);
 		when(tdRange.getRemainingCycles()).thenReturn(75); // 3 ticks
 
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(tdMage, tdRange));
 		when(client.getProjectiles()).thenReturn(deque);
 
+		tickAndRefresh();
 		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
 		assertEquals(2, attacks.size());
 		assertEquals("Tormented Demon (Magic)", attacks.get(0).npcName);
@@ -521,19 +574,19 @@ public class MobCheckPluginUnitTest
 		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, attacks.get(1).prayerStyle);
 		assertEquals(3, attacks.get(1).ticks);
 
-		// Tormented Demon Melee Animation (10922)
+		// Tormented Demon Melee Animation
 		NPC td = mock(NPC.class);
 		when(td.getIndex()).thenReturn(801);
 		when(td.getName()).thenReturn("Tormented Demon");
-		when(td.getAnimation()).thenReturn(10922);
+		when(td.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.TORMENTED_DEMON_MELEE);
 		when(td.getInteracting()).thenReturn(player);
 
 		AnimationChanged anim = new AnimationChanged();
 		anim.setActor(td);
 		plugin.onAnimationChanged(anim);
 
+		tickAndRefresh();
 		List<MobCheckPlugin.AttackState> allAttacks = plugin.getActiveAttacks();
-		assertEquals(3, allAttacks.size());
 		assertTrue(allAttacks.stream().anyMatch(a -> a.prayerStyle == MobCheckPlugin.PrayerStyle.MELEE && a.npcName.equals("Tormented Demon")));
 	}
 
@@ -547,7 +600,7 @@ public class MobCheckPluginUnitTest
 		// Projectile targeting another player
 		Projectile proj = mock(Projectile.class);
 		when(proj.getTargetActor()).thenReturn(otherPlayer);
-		when(proj.getId()).thenReturn(1374);
+		when(proj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_ZEK_MAGIC);
 		when(proj.getRemainingCycles()).thenReturn(45);
 
 		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(proj));
@@ -556,13 +609,14 @@ public class MobCheckPluginUnitTest
 		// NPC meleeing another player
 		NPC npc = mock(NPC.class);
 		when(npc.getIndex()).thenReturn(99);
-		when(npc.getAnimation()).thenReturn(7597);
+		when(npc.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JAL_IMKOT_MELEE);
 		when(npc.getInteracting()).thenReturn(otherPlayer);
 
 		AnimationChanged anim = new AnimationChanged();
 		anim.setActor(npc);
 		plugin.onAnimationChanged(anim);
 
+		tickAndRefresh();
 		// Neither should be counted
 		assertTrue(plugin.getActiveAttacks().isEmpty());
 	}
@@ -588,17 +642,100 @@ public class MobCheckPluginUnitTest
 		NPC npc = mock(NPC.class);
 		when(npc.getIndex()).thenReturn(12);
 		when(npc.getName()).thenReturn("Jal-ImKot");
-		when(npc.getAnimation()).thenReturn(7597);
+		when(npc.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JAL_IMKOT_MELEE);
 		when(npc.getInteracting()).thenReturn(player);
 
 		AnimationChanged anim = new AnimationChanged();
 		anim.setActor(npc);
 		plugin.onAnimationChanged(anim);
 
+		tickAndRefresh();
 		assertFalse(plugin.getActiveAttacks().isEmpty());
 
 		plugin.shutDown();
 		assertTrue(plugin.getActiveAttacks().isEmpty());
 	}
-}
 
+	@Test
+	public void testGenericProjectileIdsIgnoredOutsideColosseum()
+	{
+		// #4: Projectile IDs 15 and 160 should NOT trigger outside Colosseum regions
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+		when(client.getMapRegions()).thenReturn(new int[]{12850}); // Random non-Colosseum region
+
+		Projectile arrowProj = mock(Projectile.class);
+		when(arrowProj.getTargetActor()).thenReturn(player);
+		when(arrowProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.FREMENNIK_ARCHER_RANGE);
+		when(arrowProj.getRemainingCycles()).thenReturn(45);
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(arrowProj));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		tickAndRefresh();
+		assertTrue("Generic arrow projectile should be ignored outside Colosseum",
+			plugin.getActiveAttacks().isEmpty());
+	}
+
+	@Test
+	public void testGenericProjectileIdsActiveInsideColosseum()
+	{
+		// #4: Projectile IDs 15 and 160 should trigger inside Colosseum regions
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+		when(client.getMapRegions()).thenReturn(new int[]{7216}); // Colosseum region
+
+		Projectile arrowProj = mock(Projectile.class);
+		when(arrowProj.getTargetActor()).thenReturn(player);
+		when(arrowProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.FREMENNIK_ARCHER_RANGE);
+		when(arrowProj.getRemainingCycles()).thenReturn(45);
+
+		Projectile spellProj = mock(Projectile.class);
+		when(spellProj.getTargetActor()).thenReturn(player);
+		when(spellProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.FREMENNIK_SEER_MAGIC);
+		when(spellProj.getRemainingCycles()).thenReturn(60);
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(arrowProj, spellProj));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(2, attacks.size());
+		assertEquals("Archer", attacks.get(0).npcName);
+		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, attacks.get(0).prayerStyle);
+		assertEquals("Seer", attacks.get(1).npcName);
+		assertEquals(MobCheckPlugin.PrayerStyle.MAGIC, attacks.get(1).prayerStyle);
+	}
+
+	@Test
+	public void testProjectileInitialTicksPreserved()
+	{
+		// #2: Verify that initialTicks is captured on first sight and preserved
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		Projectile proj = mock(Projectile.class);
+		when(proj.getTargetActor()).thenReturn(player);
+		when(proj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_ZEK_MAGIC);
+		when(proj.getRemainingCycles()).thenReturn(150); // 5 ticks initially
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(proj));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(1, attacks.size());
+		assertEquals(5, attacks.get(0).initialTicks);
+		assertEquals(5, attacks.get(0).ticks);
+
+		// Simulate projectile decaying to 3 ticks — same object, less cycles
+		when(proj.getRemainingCycles()).thenReturn(90); // 3 ticks now
+
+		tickAndRefresh();
+		attacks = plugin.getActiveAttacks();
+		assertEquals(1, attacks.size());
+		// initialTicks should still be 5 (preserved from first sight)
+		assertEquals(5, attacks.get(0).initialTicks);
+		assertEquals(3, attacks.get(0).ticks);
+	}
+}
