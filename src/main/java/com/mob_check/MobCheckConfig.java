@@ -4,6 +4,7 @@ import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
+import net.runelite.client.config.Range;
 
 import java.awt.Color;
 
@@ -84,6 +85,10 @@ public interface MobCheckConfig extends Config
 		return true;
 	}
 
+	@Range(
+		min = 0,
+		max = 10
+	)
 	@ConfigItem(
 		keyName = "warningThreshold",
 		name = "Warning Threshold",
@@ -180,49 +185,48 @@ public interface MobCheckConfig extends Config
 		return true;
 	}
 
-	@ConfigItem(
-		keyName = "soundEffectId",
-		name = "Sound Effect ID (Legacy/Default)",
-		description = "Default sound effect ID to play on priority style changes",
-		section = audioSection,
-		position = 2
+	@Range(
+		min = 0,
+		max = 10000
 	)
-	default int soundEffectId()
-	{
-		return 2266;
-	}
-
 	@ConfigItem(
 		keyName = "magicSoundId",
 		name = "Magic Sound ID",
 		description = "Sound effect ID to play when Magic protection is needed",
 		section = audioSection,
-		position = 3
+		position = 2
 	)
 	default int magicSoundId()
 	{
-		// Default: 2266 (GE increment plop / distinct chime)
 		return 2266;
 	}
 
+	@Range(
+		min = 0,
+		max = 10000
+	)
 	@ConfigItem(
 		keyName = "rangeSoundId",
 		name = "Range Sound ID",
 		description = "Sound effect ID to play when Range protection is needed",
 		section = audioSection,
-		position = 4
+		position = 3
 	)
 	default int rangeSoundId()
 	{
 		return 2266;
 	}
 
+	@Range(
+		min = 0,
+		max = 10000
+	)
 	@ConfigItem(
 		keyName = "meleeSoundId",
 		name = "Melee Sound ID",
 		description = "Sound effect ID to play when Melee protection is needed",
 		section = audioSection,
-		position = 5
+		position = 4
 	)
 	default int meleeSoundId()
 	{
@@ -234,19 +238,23 @@ public interface MobCheckConfig extends Config
 		name = "Wrong Prayer Emergency Sound",
 		description = "Plays an emergency sound cue if unprotected when an attack is 1 tick away",
 		section = audioSection,
-		position = 6
+		position = 5
 	)
 	default boolean playWrongPrayerAlert()
 	{
 		return true;
 	}
 
+	@Range(
+		min = 0,
+		max = 10000
+	)
 	@ConfigItem(
 		keyName = "wrongPrayerSoundId",
 		name = "Wrong Prayer Sound ID",
 		description = "Sound effect ID for wrong prayer emergency warning",
 		section = audioSection,
-		position = 7
+		position = 6
 	)
 	default int wrongPrayerSoundId()
 	{
