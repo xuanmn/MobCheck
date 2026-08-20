@@ -1,10 +1,29 @@
-.gradle
-build
+# Gradle / Build outputs
+.gradle/
+build/
+bin/
+out/
+*.class
+
+# IDE & Editor files
 .idea/
+.vscode/
+*.ipr
+*.iws
+*.swp
+*~
+
+# Eclipse / NetBeans artifacts
 .project
 .settings/
 .classpath
 nbactions.xml
 nb-configuration.xml
 nbproject/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Dependencies & Node
 node_modules/
