@@ -206,3 +206,128 @@ export async function getOsrsWikiPage(titleOrUrl, { section = null, format = "su
     markdown
   };
 }
+
+/**
+ * Fetch structured monster/NPC combat stats from the OSRS Wiki Infobox Monster template.
+ * Parses wikitext to extract: combat level, hitpoints, attack style, attack speed,
+ * max hit, aggressive, poisonous, immune to poison/venom, attack/strength/defence/
+ * magic/ranged levels, and any listed projectile/animation IDs from the page content.
+ */
+export async function getOsrsWikiMonsterStats(monsterName) {
+  if (!monsterName) {
+    throw new Error("Monster name is required.");
+  }
+
+  let title = monsterName.trim();
+  if (title.startsWith("https://oldschool.runescape.wiki/w/")) {
+    title = decodeURIComponent(title.replace("https://oldschool.runescape.wiki/w/", "").replace(/_/g, " "));
+  }
+
+  // Fetch the raw wikitext to parse the Infobox Monster template
+  const url = `${WIKI_API_URL}?action=parse&page=${encodeURIComponent(title)}&prop=wikitext&redirects=1&format=json`;
+  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch wiki page: HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  if (data.error) {
+    // Try searching for suggestions
+    const searchRes = await searchOsrsWiki(title, { limit: 5 });
+    let errorMsg = `Wiki page '${title}' not found.`;
+    if (searchRes.results.length > 0) {
+      errorMsg += `\nDid you mean:\n` + searchRes.results.map(r => `- [${r.title}](${r.url})`).join("\n");
+    }
+    throw new Error(errorMsg);
+  }
+
+  const wikitext = data.parse?.wikitext?.["*"] || "";
+  const parsedTitle = data.parse?.title || title;
+  const canonicalUrl = `${WIKI_BASE_URL}${encodeURIComponent(parsedTitle.replace(/\s+/g, "_"))}`;
+
+  // Parse Infobox Monster template parameters
+  const stats = {};
+  const infoboxFields = [
+    "name", "combat", "hitpoints", "att_bonus", "str_bonus", "def_bonus",
+    "attack", "strength", "defence", "magic", "ranged",
+    "attbns", "strbns", "apts", "defbns",
+    "attspeed", "attack speed", "attack style", "attackstyle",
+    "aggressive", "poisonous", "immunepoison", "immunevenom",
+    "max hit", "maxhit", "slaylvl", "slayxp",
+    "size", "examine", "id", "npcid",
+    "respawn", "members",
+  ];
+
+  for (const field of infoboxFields) {
+    // Match |field = value or |field=value patterns in wikitext
+    const regex = new RegExp(`\\|\\s*${field.replace(/\s+/g, "\\s*")}\\s*=\\s*([^\\n|{}]+)`, "gi");
+    const match = regex.exec(wikitext);
+    if (match) {
+      const value = match[1].trim();
+      if (value && value !== "N/A" && value !== "No") {
+        // Clean wiki formatting from value
+        const cleaned = value
+          .replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, "$1")
+          .replace(/\{\{[^}]*\}\}/g, "")
+          .replace(/<[^>]+>/g, "")
+          .trim();
+        if (cleaned) {
+          stats[field.replace(/\s+/g, "_")] = cleaned;
+        }
+      }
+    }
+  }
+
+  // Try to find multiple infobox versions (some monsters have multiple forms)
+  const versionCount = (wikitext.match(/\{\{Infobox Monster/gi) || []).length;
+
+  // Extract any projectile or animation ID mentions from the full page
+  const idReferences = {};
+  const projMatches = [...wikitext.matchAll(/projectile\s*(?:id|ID)?\s*[:=]?\s*(\d{2,5})/gi)];
+  if (projMatches.length > 0) {
+    idReferences.projectileIds = [...new Set(projMatches.map(m => parseInt(m[1])))];
+  }
+  const animMatches = [...wikitext.matchAll(/animation\s*(?:id|ID)?\s*[:=]?\s*(\d{3,5})/gi)];
+  if (animMatches.length > 0) {
+    idReferences.animationIds = [...new Set(animMatches.map(m => parseInt(m[1])))];
+  }
+
+  // Build markdown output
+  let markdown = `# ${parsedTitle} — Monster Stats\n\n`;
+  markdown += `**Source**: [${canonicalUrl}](${canonicalUrl})\n\n`;
+
+  if (Object.keys(stats).length > 0) {
+    markdown += `## Infobox Data\n\n`;
+    markdown += `| Stat | Value |\n`;
+    markdown += `| :--- | :--- |\n`;
+    for (const [key, value] of Object.entries(stats)) {
+      markdown += `| ${key} | ${value} |\n`;
+    }
+    markdown += `\n`;
+  } else {
+    markdown += `> No Infobox Monster data found. This page may not be a monster article.\n\n`;
+  }
+
+  if (versionCount > 1) {
+    markdown += `> **Note**: This monster has ${versionCount} infobox versions (multiple forms/phases). Only the first version's stats are shown above.\n\n`;
+  }
+
+  if (Object.keys(idReferences).length > 0) {
+    markdown += `## Referenced IDs\n\n`;
+    if (idReferences.projectileIds) {
+      markdown += `**Projectile IDs**: ${idReferences.projectileIds.join(", ")}\n`;
+    }
+    if (idReferences.animationIds) {
+      markdown += `**Animation IDs**: ${idReferences.animationIds.join(", ")}\n`;
+    }
+    markdown += `\n`;
+  }
+
+  return {
+    title: parsedTitle,
+    url: canonicalUrl,
+    stats,
+    versionCount,
+    idReferences,
+    markdown,
+  };
+}

@@ -1,5 +1,6 @@
 import { searchRuneliteJavadocs, getRuneliteJavadoc } from "../src/runelite-docs.js";
-import { searchOsrsWiki, getOsrsWikiPage, getOsrsWikiSections } from "../src/osrs-wiki.js";
+import { searchOsrsWiki, getOsrsWikiPage, getOsrsWikiSections, getOsrsWikiMonsterStats } from "../src/osrs-wiki.js";
+import { getRuneliteConstants, searchRuneliteSource } from "../src/runelite-source.js";
 
 async function runTests() {
   console.log("=== Testing RuneLite Javadoc Search ===");
@@ -14,24 +15,31 @@ async function runTests() {
   console.log(`Title: ${javadoc.title}`);
   console.log(`Package: ${javadoc.package}`);
   console.log(`Methods parsed: ${javadoc.methodCount}`);
-  console.log("Sample markdown snippet:\n" + javadoc.markdown.substring(0, 400) + "...\n");
 
-  console.log("=== Testing OSRS Wiki Search ===");
+  console.log("\n=== Testing RuneLite Constants Fetch (Filtered) ===");
+  const constants = await getRuneliteConstants("AnimationID", { filter: "jad" });
+  console.log(`File: ${constants.file}, Matches: ${constants.matchCount}`);
+  console.log("Sample constants content:\n" + constants.content);
+
+  console.log("\n=== Testing OSRS Wiki Search ===");
   const searchWiki = await searchOsrsWiki("Abyssal demon", { limit: 3 });
   console.log(`Found ${searchWiki.count} results for 'Abyssal demon':`);
   for (const r of searchWiki.results) {
     console.log(`  - ${r.title} -> ${r.url}`);
   }
 
-  console.log("\n=== Testing OSRS Wiki Sections ===");
-  const sections = await getOsrsWikiSections("Abyssal demon");
-  console.log(`Page: ${sections.title}, Sections count: ${sections.sections.length}`);
-  console.log(`Sample sections:`, sections.sections.slice(0, 5).map(s => s.name));
+  console.log("\n=== Testing OSRS Wiki Monster Stats ===");
+  const monsterStats = await getOsrsWikiMonsterStats("Phantom Muspah");
+  console.log(`Title: ${monsterStats.title}`);
+  console.log(`Combat level: ${monsterStats.stats?.combat || 'N/A'}`);
+  console.log(`Hitpoints: ${monsterStats.stats?.hitpoints || 'N/A'}`);
+  console.log(`Attack style: ${monsterStats.stats?.attack_style || 'N/A'}`);
+  console.log(`Attack speed: ${monsterStats.stats?.attack_speed || monsterStats.stats?.attspeed || 'N/A'}`);
 
   console.log("\n=== Testing OSRS Wiki Page Fetch ===");
   const page = await getOsrsWikiPage("Abyssal demon");
   console.log(`Title: ${page.title}`);
-  console.log("Extract snippet:\n" + page.extract.substring(0, 300) + "...\n");
+  console.log("Extract snippet:\n" + page.extract.substring(0, 200) + "...\n");
 
   console.log("ALL TESTS PASSED SUCCESSFULLY! ✅");
 }
