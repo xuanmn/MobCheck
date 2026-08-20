@@ -1,21 +1,25 @@
 package com.mob_check;
 
 import com.google.inject.Provides;
-import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
+import net.runelite.api.NPCComposition;
 import net.runelite.api.Player;
 import net.runelite.api.Prayer;
 import net.runelite.api.Projectile;
 import net.runelite.api.SpriteID;
+import net.runelite.api.Actor;
+import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameTick;
-import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.awt.Color;
@@ -23,9 +27,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @PluginDescriptor(
 	name = "Mob Check",
@@ -34,6 +40,104 @@ import java.util.Optional;
 )
 public class MobCheckPlugin extends Plugin
 {
+	private static final Logger log = LoggerFactory.getLogger(MobCheckPlugin.class);
+
+	// ==========================================
+	// Projectile ID Constants
+	// ==========================================
+	public static final class ProjectileID
+	{
+		// Inferno
+		public static final int JAL_ZEK_MAGIC = 1374;
+		public static final int JAL_AKREK_MEJ_MAGIC = 1381;
+		public static final int JAL_XIL_RANGE = 1376;
+		public static final int JAL_AKREK_XIL_RANGE = 1379;
+		public static final int JAL_AK_MAGIC = 1380;
+		public static final int JAL_AK_RANGE = 1378;
+		public static final int JAL_MEJRAH_RANGE = 1382;
+		public static final int JALTOK_JAD_MAGIC = 448;
+		public static final int JALTOK_JAD_RANGE = 449;
+
+		// Fortis Colosseum
+		public static final int SERPENT_SHAMAN_MAGIC = 2685;
+		public static final int JAVELINIC_COLOSSUS_RANGE = 2686;
+		public static final int MANTICORE_MAGIC = 2687;
+		public static final int MANTICORE_RANGE = 2688;
+		public static final int SOL_HEREDIT_MAGIC = 2689;
+		public static final int FREMENNIK_ARCHER_RANGE = 15;
+		public static final int FREMENNIK_SEER_MAGIC = 160;
+
+		// Additional Bosses
+		public static final int ZULRAH_MAGIC = 1044;
+		public static final int ZULRAH_RANGE = 1046;
+		public static final int VORKATH_MAGIC = 1481;
+		public static final int VORKATH_RANGE = 1483;
+		public static final int CERBERUS_MAGIC = 1243;
+		public static final int CERBERUS_RANGE = 1244;
+		public static final int HYDRA_MAGIC = 1662;
+		public static final int HYDRA_RANGE = 1663;
+		public static final int HUNLLEF_MAGIC = 1707;
+		public static final int HUNLLEF_RANGE = 1708;
+		public static final int DEMONIC_GORILLA_MAGIC = 1302;
+		public static final int DEMONIC_GORILLA_RANGE = 1304;
+		public static final int ZILYANA_MAGIC = 1220;
+		public static final int KRIL_MAGIC = 1211;
+		public static final int MUSPAH_MAGIC = 2329;
+		public static final int MUSPAH_RANGE = 2330;
+		public static final int TORMENTED_DEMON_MAGIC = 1885;
+		public static final int TORMENTED_DEMON_RANGE = 1884;
+
+		private ProjectileID() {}
+	}
+
+	// ==========================================
+	// Animation ID Constants
+	// ==========================================
+	public static final class AnimationID
+	{
+		// Inferno
+		public static final int JAL_IMKOT_MELEE = 7597;
+		public static final int JAL_ZEK_MELEE = 7612;
+		public static final int JAL_XIL_MELEE = 7604;
+		public static final int JAL_AK_MELEE = 7582;
+		public static final int JALTOK_JAD_MELEE = 7590;
+		public static final int JAL_MEJRAH_MELEE = 7578;
+
+		// Fortis Colosseum
+		public static final int JAGUAR_WARRIOR_MELEE = 10871;
+		public static final int MINOTAUR_MELEE = 10872;
+		public static final int FREMENNIK_BERSERKER_MELEE = 10873;
+		public static final int SHOCKWAVE_COLOSSUS_MELEE = 10874;
+		public static final int SOL_HEREDIT_MELEE_ATTACK = 10875;
+		public static final int SOL_HEREDIT_MELEE_SWEEP = 10876;
+		public static final int SOL_HEREDIT_MELEE_SLAM = 10877;
+
+		// Additional Bosses & Slayer
+		public static final int ABYSSAL_DEMON_MELEE = 2309;
+		public static final int BLOODVELD_MELEE = 1552;
+		public static final int ZILYANA_MELEE = 6964;
+		public static final int GRAARDOR_MELEE = 7060;
+		public static final int KRIL_MELEE = 6948;
+		public static final int CERBERUS_MELEE = 4492;
+		public static final int DEMONIC_GORILLA_MELEE = 7226;
+		public static final int MUSPAH_MELEE_ATTACK = 9920;
+		public static final int MUSPAH_MELEE_SWIPE = 9922;
+		public static final int TORMENTED_DEMON_MELEE = 10922;
+
+		private AnimationID() {}
+	}
+
+	// ==========================================
+	// Colosseum Region IDs (for gating generic projectile IDs)
+	// ==========================================
+	private static final Set<Integer> COLOSSEUM_REGION_IDS = new HashSet<>();
+	static
+	{
+		// Fortis Colosseum region IDs
+		COLOSSEUM_REGION_IDS.add(7216);
+		COLOSSEUM_REGION_IDS.add(7472);
+	}
+
 	@Inject
 	private Client client;
 
@@ -115,16 +219,15 @@ public class MobCheckPlugin extends Plugin
 	{
 		public int ticks;
 		public final int initialTicks;
-		public final String style;
 		public final PrayerStyle prayerStyle;
 		public final String npcName;
 		public final NPC sourceNpc;
 		public final Projectile projectile;
 		public final boolean isManticoreCombo;
 
-		public AttackState(int ticks, String style, String npcName)
+		public AttackState(int ticks, String styleName, String npcName)
 		{
-			this(ticks, ticks, PrayerStyle.fromDisplayName(style), npcName, null, null, false);
+			this(ticks, ticks, PrayerStyle.fromDisplayName(styleName), npcName, null, null, false);
 		}
 
 		public AttackState(int ticks, int initialTicks, PrayerStyle prayerStyle, String npcName, NPC sourceNpc, Projectile projectile, boolean isManticoreCombo)
@@ -132,16 +235,29 @@ public class MobCheckPlugin extends Plugin
 			this.ticks = ticks;
 			this.initialTicks = Math.max(initialTicks, ticks);
 			this.prayerStyle = prayerStyle != null ? prayerStyle : PrayerStyle.MAGIC;
-			this.style = this.prayerStyle.getDisplayName();
 			this.npcName = npcName;
 			this.sourceNpc = sourceNpc;
 			this.projectile = projectile;
 			this.isManticoreCombo = isManticoreCombo;
 		}
+
+		/**
+		 * Returns the display name for this attack's prayer style.
+		 */
+		public String getStyleDisplayName()
+		{
+			return prayerStyle.getDisplayName();
+		}
 	}
 
 	private final Map<Integer, AttackState> npcMeleeAttacks = new HashMap<>();
 	private String lastPriorityStyle = "";
+
+	// #1: Cached attack list — rebuilt once per game tick
+	private List<AttackState> cachedAttacks = Collections.emptyList();
+
+	// #2: Tracks the initial tick count for each projectile (keyed by identity hash)
+	private final Map<Integer, Integer> projectileInitialTicks = new HashMap<>();
 
 	// Comprehensive projectile mappings
 	private static final Map<Integer, String> PROJECTILE_STYLES = new HashMap<>();
@@ -150,112 +266,120 @@ public class MobCheckPlugin extends Plugin
 	{
 		// === INFERNO ===
 		// Jal-Zek (Mage)
-		PROJECTILE_STYLES.put(1374, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1374, "Jal-Zek");
-		PROJECTILE_STYLES.put(1381, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1381, "Jal-AkRek-Mej");
+		PROJECTILE_STYLES.put(ProjectileID.JAL_ZEK_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.JAL_ZEK_MAGIC, "Jal-Zek");
+		PROJECTILE_STYLES.put(ProjectileID.JAL_AKREK_MEJ_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.JAL_AKREK_MEJ_MAGIC, "Jal-AkRek-Mej");
 
 		// Jal-Xil (Ranger)
-		PROJECTILE_STYLES.put(1376, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(1376, "Jal-Xil");
-		PROJECTILE_STYLES.put(1379, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(1379, "Jal-AkRek-Xil");
+		PROJECTILE_STYLES.put(ProjectileID.JAL_XIL_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.JAL_XIL_RANGE, "Jal-Xil");
+		PROJECTILE_STYLES.put(ProjectileID.JAL_AKREK_XIL_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.JAL_AKREK_XIL_RANGE, "Jal-AkRek-Xil");
 
 		// Jal-Ak (Blob)
-		PROJECTILE_STYLES.put(1380, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1380, "Jal-Ak (Magic)");
-		PROJECTILE_STYLES.put(1378, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(1378, "Jal-Ak (Range)");
+		PROJECTILE_STYLES.put(ProjectileID.JAL_AK_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.JAL_AK_MAGIC, "Jal-Ak (Magic)");
+		PROJECTILE_STYLES.put(ProjectileID.JAL_AK_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.JAL_AK_RANGE, "Jal-Ak (Range)");
 
 		// Jal-MejRah (Bat)
-		PROJECTILE_STYLES.put(1382, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(1382, "Jal-MejRah");
+		PROJECTILE_STYLES.put(ProjectileID.JAL_MEJRAH_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.JAL_MEJRAH_RANGE, "Jal-MejRah");
 
 		// JalTok-Jad
-		PROJECTILE_STYLES.put(448, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(448, "JalTok-Jad (Magic)");
-		PROJECTILE_STYLES.put(449, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(449, "JalTok-Jad (Range)");
+		PROJECTILE_STYLES.put(ProjectileID.JALTOK_JAD_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.JALTOK_JAD_MAGIC, "JalTok-Jad (Magic)");
+		PROJECTILE_STYLES.put(ProjectileID.JALTOK_JAD_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.JALTOK_JAD_RANGE, "JalTok-Jad (Range)");
 
 		// === FORTIS COLOSSEUM ===
 		// Serpent Shaman
-		PROJECTILE_STYLES.put(2685, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(2685, "Serpent Shaman");
+		PROJECTILE_STYLES.put(ProjectileID.SERPENT_SHAMAN_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.SERPENT_SHAMAN_MAGIC, "Serpent Shaman");
 
 		// Javelinic Colossus
-		PROJECTILE_STYLES.put(2686, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(2686, "Javelinic Colossus");
+		PROJECTILE_STYLES.put(ProjectileID.JAVELINIC_COLOSSUS_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.JAVELINIC_COLOSSUS_RANGE, "Javelinic Colossus");
 
 		// Manticore
-		PROJECTILE_STYLES.put(2687, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(2687, "Manticore (Magic)");
-		PROJECTILE_STYLES.put(2688, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(2688, "Manticore (Range)");
+		PROJECTILE_STYLES.put(ProjectileID.MANTICORE_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.MANTICORE_MAGIC, "Manticore (Magic)");
+		PROJECTILE_STYLES.put(ProjectileID.MANTICORE_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.MANTICORE_RANGE, "Manticore (Range)");
 
 		// Sol Heredit
-		PROJECTILE_STYLES.put(2689, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(2689, "Sol Heredit");
+		PROJECTILE_STYLES.put(ProjectileID.SOL_HEREDIT_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.SOL_HEREDIT_MAGIC, "Sol Heredit");
 
-		// Fremennik Warband
-		PROJECTILE_STYLES.put(15, "Pray Range"); // Standard arrows / Fremennik Archer
-		PROJECTILE_NPC_NAMES.put(15, "Archer");
-		PROJECTILE_STYLES.put(160, "Pray Magic"); // Standard spells / Fremennik Seer
-		PROJECTILE_NPC_NAMES.put(160, "Seer");
+		// Note: Fremennik Archer (15) and Seer (160) are generic engine IDs.
+		// They are only matched inside Colosseum regions — see isInColosseumRegion().
 
 		// === ADDITIONAL BOSSES ===
 		// Zulrah
-		PROJECTILE_STYLES.put(1044, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1044, "Zulrah");
-		PROJECTILE_STYLES.put(1046, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(1046, "Zulrah");
+		PROJECTILE_STYLES.put(ProjectileID.ZULRAH_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.ZULRAH_MAGIC, "Zulrah");
+		PROJECTILE_STYLES.put(ProjectileID.ZULRAH_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.ZULRAH_RANGE, "Zulrah");
 
 		// Vorkath
-		PROJECTILE_STYLES.put(1481, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1481, "Vorkath");
-		PROJECTILE_STYLES.put(1483, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(1483, "Vorkath");
+		PROJECTILE_STYLES.put(ProjectileID.VORKATH_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.VORKATH_MAGIC, "Vorkath");
+		PROJECTILE_STYLES.put(ProjectileID.VORKATH_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.VORKATH_RANGE, "Vorkath");
 
 		// Cerberus
-		PROJECTILE_STYLES.put(1243, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1243, "Cerberus");
-		PROJECTILE_STYLES.put(1244, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(1244, "Cerberus");
+		PROJECTILE_STYLES.put(ProjectileID.CERBERUS_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.CERBERUS_MAGIC, "Cerberus");
+		PROJECTILE_STYLES.put(ProjectileID.CERBERUS_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.CERBERUS_RANGE, "Cerberus");
 
 		// Alchemical Hydra
-		PROJECTILE_STYLES.put(1662, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1662, "Alchemical Hydra");
-		PROJECTILE_STYLES.put(1663, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(1663, "Alchemical Hydra");
+		PROJECTILE_STYLES.put(ProjectileID.HYDRA_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.HYDRA_MAGIC, "Alchemical Hydra");
+		PROJECTILE_STYLES.put(ProjectileID.HYDRA_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.HYDRA_RANGE, "Alchemical Hydra");
 
 		// Hunllef (Gauntlet)
-		PROJECTILE_STYLES.put(1707, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1707, "Hunllef");
-		PROJECTILE_STYLES.put(1708, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(1708, "Hunllef");
+		PROJECTILE_STYLES.put(ProjectileID.HUNLLEF_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.HUNLLEF_MAGIC, "Hunllef");
+		PROJECTILE_STYLES.put(ProjectileID.HUNLLEF_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.HUNLLEF_RANGE, "Hunllef");
 
 		// Demonic Gorilla
-		PROJECTILE_STYLES.put(1302, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1302, "Demonic Gorilla");
-		PROJECTILE_STYLES.put(1304, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(1304, "Demonic Gorilla");
+		PROJECTILE_STYLES.put(ProjectileID.DEMONIC_GORILLA_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.DEMONIC_GORILLA_MAGIC, "Demonic Gorilla");
+		PROJECTILE_STYLES.put(ProjectileID.DEMONIC_GORILLA_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.DEMONIC_GORILLA_RANGE, "Demonic Gorilla");
 
 		// God Wars Dungeon
-		PROJECTILE_STYLES.put(1220, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1220, "Commander Zilyana");
-		PROJECTILE_STYLES.put(1211, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1211, "K'ril Tsutsaroth");
+		PROJECTILE_STYLES.put(ProjectileID.ZILYANA_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.ZILYANA_MAGIC, "Commander Zilyana");
+		PROJECTILE_STYLES.put(ProjectileID.KRIL_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.KRIL_MAGIC, "K'ril Tsutsaroth");
 
 		// Phantom Muspah
-		PROJECTILE_STYLES.put(2329, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(2329, "Phantom Muspah (Magic)");
-		PROJECTILE_STYLES.put(2330, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(2330, "Phantom Muspah (Range)");
+		PROJECTILE_STYLES.put(ProjectileID.MUSPAH_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.MUSPAH_MAGIC, "Phantom Muspah (Magic)");
+		PROJECTILE_STYLES.put(ProjectileID.MUSPAH_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.MUSPAH_RANGE, "Phantom Muspah (Range)");
 
 		// Tormented Demons
-		PROJECTILE_STYLES.put(1885, "Pray Magic");
-		PROJECTILE_NPC_NAMES.put(1885, "Tormented Demon (Magic)");
-		PROJECTILE_STYLES.put(1884, "Pray Range");
-		PROJECTILE_NPC_NAMES.put(1884, "Tormented Demon (Range)");
+		PROJECTILE_STYLES.put(ProjectileID.TORMENTED_DEMON_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.TORMENTED_DEMON_MAGIC, "Tormented Demon (Magic)");
+		PROJECTILE_STYLES.put(ProjectileID.TORMENTED_DEMON_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.TORMENTED_DEMON_RANGE, "Tormented Demon (Range)");
+	}
+
+	// Region-gated projectile mappings (only active in specific regions)
+	private static final Map<Integer, String> COLOSSEUM_ONLY_PROJECTILE_STYLES = new HashMap<>();
+	private static final Map<Integer, String> COLOSSEUM_ONLY_PROJECTILE_NPC_NAMES = new HashMap<>();
+	static
+	{
+		COLOSSEUM_ONLY_PROJECTILE_STYLES.put(ProjectileID.FREMENNIK_ARCHER_RANGE, "Pray Range");
+		COLOSSEUM_ONLY_PROJECTILE_NPC_NAMES.put(ProjectileID.FREMENNIK_ARCHER_RANGE, "Archer");
+		COLOSSEUM_ONLY_PROJECTILE_STYLES.put(ProjectileID.FREMENNIK_SEER_MAGIC, "Pray Magic");
+		COLOSSEUM_ONLY_PROJECTILE_NPC_NAMES.put(ProjectileID.FREMENNIK_SEER_MAGIC, "Seer");
 	}
 
 	// Comprehensive animation mappings (for Melee/Instant attacks)
@@ -263,33 +387,33 @@ public class MobCheckPlugin extends Plugin
 	static
 	{
 		// === INFERNO ANIMATIONS ===
-		MELEE_ANIMATIONS.put(7597, 4); // Jal-ImKot (Meleer)
-		MELEE_ANIMATIONS.put(7612, 4); // Jal-Zek (Mage Melee punch)
-		MELEE_ANIMATIONS.put(7604, 4); // Jal-Xil (Ranger Melee punch)
-		MELEE_ANIMATIONS.put(7582, 4); // Jal-Ak (Blob Melee attack)
-		MELEE_ANIMATIONS.put(7590, 4); // JalTok-Jad Melee attack
-		MELEE_ANIMATIONS.put(7578, 4); // Jal-MejRah (Bat attack)
+		MELEE_ANIMATIONS.put(AnimationID.JAL_IMKOT_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.JAL_ZEK_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.JAL_XIL_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.JAL_AK_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.JALTOK_JAD_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.JAL_MEJRAH_MELEE, 4);
 
 		// === FORTIS COLOSSEUM ANIMATIONS ===
-		MELEE_ANIMATIONS.put(10871, 4); // Jaguar Warrior Melee attack
-		MELEE_ANIMATIONS.put(10872, 4); // Minotaur Melee attack
-		MELEE_ANIMATIONS.put(10873, 4); // Fremennik Berserker Melee attack
-		MELEE_ANIMATIONS.put(10874, 4); // Shockwave Colossus Melee attack
-		MELEE_ANIMATIONS.put(10875, 4); // Sol Heredit Melee attack
-		MELEE_ANIMATIONS.put(10876, 4); // Sol Heredit Melee sweep
-		MELEE_ANIMATIONS.put(10877, 4); // Sol Heredit Melee slam
+		MELEE_ANIMATIONS.put(AnimationID.JAGUAR_WARRIOR_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.MINOTAUR_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.FREMENNIK_BERSERKER_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.SHOCKWAVE_COLOSSUS_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.SOL_HEREDIT_MELEE_ATTACK, 4);
+		MELEE_ANIMATIONS.put(AnimationID.SOL_HEREDIT_MELEE_SWEEP, 4);
+		MELEE_ANIMATIONS.put(AnimationID.SOL_HEREDIT_MELEE_SLAM, 4);
 
 		// === ADDITIONAL MELEE ANIMATIONS ===
-		MELEE_ANIMATIONS.put(2309, 4); // Abyssal demon
-		MELEE_ANIMATIONS.put(1552, 4); // Bloodveld
-		MELEE_ANIMATIONS.put(6964, 4); // Commander Zilyana Melee
-		MELEE_ANIMATIONS.put(7060, 4); // General Graardor Melee
-		MELEE_ANIMATIONS.put(6948, 4); // K'ril Tsutsaroth Melee
-		MELEE_ANIMATIONS.put(4492, 4); // Cerberus Melee
-		MELEE_ANIMATIONS.put(7226, 4); // Demonic Gorilla Melee
-		MELEE_ANIMATIONS.put(9920, 4); // Phantom Muspah Melee attack
-		MELEE_ANIMATIONS.put(9922, 4); // Phantom Muspah Melee swipe
-		MELEE_ANIMATIONS.put(10922, 4); // Tormented Demon Melee claw attack
+		MELEE_ANIMATIONS.put(AnimationID.ABYSSAL_DEMON_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.BLOODVELD_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.ZILYANA_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.GRAARDOR_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.KRIL_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.CERBERUS_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.DEMONIC_GORILLA_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.MUSPAH_MELEE_ATTACK, 4);
+		MELEE_ANIMATIONS.put(AnimationID.MUSPAH_MELEE_SWIPE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.TORMENTED_DEMON_MELEE, 4);
 	}
 
 	@Provides
@@ -302,18 +426,24 @@ public class MobCheckPlugin extends Plugin
 	protected void startUp()
 	{
 		npcMeleeAttacks.clear();
+		projectileInitialTicks.clear();
+		cachedAttacks = Collections.emptyList();
 		overlayManager.add(overlay);
 		overlayManager.add(prayerWidgetOverlay);
 		overlayManager.add(worldOverlay);
+		log.debug("Mob Check plugin started");
 	}
 
 	@Override
 	protected void shutDown()
 	{
 		npcMeleeAttacks.clear();
+		projectileInitialTicks.clear();
+		cachedAttacks = Collections.emptyList();
 		overlayManager.remove(overlay);
 		overlayManager.remove(prayerWidgetOverlay);
 		overlayManager.remove(worldOverlay);
+		log.debug("Mob Check plugin stopped");
 	}
 
 	@Subscribe
@@ -346,29 +476,34 @@ public class MobCheckPlugin extends Plugin
 				null,
 				false
 			));
+			log.debug("Melee attack registered: {} (anim={}, ticks={})", name, anim, warningTicks);
 		}
 	}
 
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-		// Countdown active melee attacks
+		// #3: Countdown active melee attacks — remove when ticks go below 0
+		// so the warning stays visible at 0t (the impact tick)
 		npcMeleeAttacks.entrySet().removeIf(entry -> {
 			entry.getValue().ticks--;
-			return entry.getValue().ticks <= 0;
+			return entry.getValue().ticks < 0;
 		});
+
+		// #1: Rebuild and cache the attack list once per tick
+		cachedAttacks = buildActiveAttacks();
 
 		// Sound alert on priority change or emergency wrong-prayer warning
 		Optional<AttackState> priorityOpt = getPriorityAttack();
 		if (priorityOpt.isPresent())
 		{
 			AttackState priority = priorityOpt.get();
-			boolean styleChanged = !priority.style.equals(lastPriorityStyle);
+			boolean styleChanged = !priority.getStyleDisplayName().equals(lastPriorityStyle);
 			if (styleChanged)
 			{
 				playAlertSound(priority.prayerStyle);
 			}
-			lastPriorityStyle = priority.style;
+			lastPriorityStyle = priority.getStyleDisplayName();
 
 			// Emergency audio cue if unprotected and 1 tick away
 			if (config.playWrongPrayerAlert() && priority.ticks <= 1 && !isPrayerProtected(priority.prayerStyle))
@@ -402,7 +537,8 @@ public class MobCheckPlugin extends Plugin
 				soundId = config.meleeSoundId();
 				break;
 			default:
-				soundId = config.soundEffectId();
+				// Unreachable — PrayerStyle only has MAGIC, RANGE, MELEE
+				soundId = config.magicSoundId();
 				break;
 		}
 
@@ -418,64 +554,169 @@ public class MobCheckPlugin extends Plugin
 		return client.isPrayerActive(style.getPrayer());
 	}
 
+	/**
+	 * Returns the cached attack list from the most recent game tick.
+	 * This list is rebuilt once per tick in onGameTick() to ensure consistent
+	 * state across all overlays rendering on the same frame.
+	 */
 	public List<AttackState> getActiveAttacks()
+	{
+		return cachedAttacks;
+	}
+
+	public Optional<AttackState> getPriorityAttack()
+	{
+		List<AttackState> attacks = getActiveAttacks();
+		return attacks.isEmpty() ? Optional.empty() : Optional.of(attacks.get(0));
+	}
+
+	/**
+	 * Checks whether the player is currently in a Colosseum region.
+	 * Used to gate generic projectile IDs (15, 160) that would false-positive elsewhere.
+	 */
+	private boolean isInColosseumRegion()
+	{
+		if (client.getMapRegions() == null)
+		{
+			return false;
+		}
+		for (int region : client.getMapRegions())
+		{
+			if (COLOSSEUM_REGION_IDS.contains(region))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Resolves the prayer style for a projectile ID, considering region-gated IDs.
+	 */
+	private String resolveProjectileStyle(int projectileId)
+	{
+		String style = PROJECTILE_STYLES.get(projectileId);
+		if (style != null)
+		{
+			return style;
+		}
+
+		// Check region-gated projectiles (Fremennik Warband arrows/spells)
+		if (isInColosseumRegion())
+		{
+			return COLOSSEUM_ONLY_PROJECTILE_STYLES.get(projectileId);
+		}
+
+		return null;
+	}
+
+	/**
+	 * Resolves the NPC name for a projectile ID, considering region-gated IDs.
+	 */
+	private String resolveProjectileNpcName(int projectileId)
+	{
+		String name = PROJECTILE_NPC_NAMES.get(projectileId);
+		if (name != null)
+		{
+			return name;
+		}
+
+		if (isInColosseumRegion())
+		{
+			return COLOSSEUM_ONLY_PROJECTILE_NPC_NAMES.get(projectileId);
+		}
+
+		return null;
+	}
+
+	/**
+	 * Builds the full active attack list from live projectiles and melee attack tracking.
+	 * Called once per game tick. Handles projectile deduplication and initialTicks caching.
+	 */
+	private List<AttackState> buildActiveAttacks()
 	{
 		List<AttackState> attacks = new ArrayList<>();
 		Player localPlayer = client.getLocalPlayer();
+
+		// #5: Track seen projectiles for deduplication within this tick
+		Set<Projectile> seenProjectiles = new HashSet<>();
+
+		// #2: Track which projectile identity hashes are still alive to prune stale entries
+		Set<Integer> aliveProjectileHashes = new HashSet<>();
 
 		// Gather active projectiles targeting the player
 		if (localPlayer != null && client.getProjectiles() != null)
 		{
 			for (Projectile projectile : client.getProjectiles())
 			{
-				if (projectile.getTargetActor() == localPlayer)
+				if (projectile.getTargetActor() != localPlayer)
 				{
-					int id = projectile.getId();
-					String styleName = PROJECTILE_STYLES.get(id);
-					if (styleName == null && config.trackUnknownProjectiles())
-					{
-						styleName = "Pray Magic";
-					}
+					continue;
+				}
 
-					if (styleName != null)
+				// #5: Skip duplicate projectile references
+				if (!seenProjectiles.add(projectile))
+				{
+					continue;
+				}
+
+				int id = projectile.getId();
+				String styleName = resolveProjectileStyle(id);
+				if (styleName == null && config.trackUnknownProjectiles())
+				{
+					styleName = "Pray Magic";
+				}
+
+				if (styleName != null)
+				{
+					int ticksRemaining = (projectile.getRemainingCycles() + 29) / 30;
+					if (ticksRemaining > 0)
 					{
-						int ticksRemaining = (projectile.getRemainingCycles() + 29) / 30;
-						if (ticksRemaining > 0)
+						PrayerStyle prayerStyle = PrayerStyle.fromDisplayName(styleName);
+						String sourceName = null;
+						NPC sourceNpc = null;
+						Actor source = projectile.getSourceActor();
+						if (source instanceof NPC)
 						{
-							PrayerStyle prayerStyle = PrayerStyle.fromDisplayName(styleName);
-							String sourceName = null;
-							NPC sourceNpc = null;
-							Actor source = projectile.getSourceActor();
-							if (source instanceof NPC)
-							{
-								sourceNpc = (NPC) source;
-								sourceName = sourceNpc.getName();
-							}
-							else if (source != null && source.getName() != null)
-							{
-								sourceName = source.getName();
-							}
+							sourceNpc = (NPC) source;
+							sourceName = sourceNpc.getName();
+						}
+						else if (source != null && source.getName() != null)
+						{
+							sourceName = source.getName();
+						}
 
+						if (sourceName == null)
+						{
+							sourceName = resolveProjectileNpcName(id);
 							if (sourceName == null)
 							{
-								sourceName = PROJECTILE_NPC_NAMES.getOrDefault(id, "Incoming Projectile");
+								sourceName = "Incoming Projectile";
 							}
-
-							boolean isManticore = (id == 2687 || id == 2688);
-							attacks.add(new AttackState(
-								ticksRemaining,
-								ticksRemaining,
-								prayerStyle,
-								sourceName,
-								sourceNpc,
-								projectile,
-								isManticore
-							));
 						}
+
+						// #2: Cache initialTicks on first sight of this projectile
+						int projHash = System.identityHashCode(projectile);
+						aliveProjectileHashes.add(projHash);
+						int initialTicks = projectileInitialTicks.computeIfAbsent(projHash, k -> ticksRemaining);
+
+						boolean isManticore = (id == ProjectileID.MANTICORE_MAGIC || id == ProjectileID.MANTICORE_RANGE);
+						attacks.add(new AttackState(
+							ticksRemaining,
+							initialTicks,
+							prayerStyle,
+							sourceName,
+							sourceNpc,
+							projectile,
+							isManticore
+						));
 					}
 				}
 			}
 		}
+
+		// #2: Prune stale entries from the initialTicks cache
+		projectileInitialTicks.keySet().retainAll(aliveProjectileHashes);
 
 		// Gather active melee animation threats
 		attacks.addAll(npcMeleeAttacks.values());
@@ -483,11 +724,5 @@ public class MobCheckPlugin extends Plugin
 		// Sort threats by ticks ascending (lowest ticks = nearest impact = highest priority)
 		attacks.sort(Comparator.comparingInt(a -> a.ticks));
 		return Collections.unmodifiableList(attacks);
-	}
-
-	public Optional<AttackState> getPriorityAttack()
-	{
-		List<AttackState> attacks = getActiveAttacks();
-		return attacks.isEmpty() ? Optional.empty() : Optional.of(attacks.get(0));
 	}
 }
