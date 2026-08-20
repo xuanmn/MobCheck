@@ -2,8 +2,11 @@ package com.mob_check;
 
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
+import net.runelite.api.NPCComposition;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;
+import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -70,18 +73,45 @@ public class MobCheckWorldOverlay extends Overlay
 			Color styleColor = attack.prayerStyle != null ? attack.prayerStyle.getColor() : Color.WHITE;
 
 			// 1. Draw True Tile polygon on the ground
-			if (config.highlightNpcTrueTile() && npc.getLocalLocation() != null)
+			// #11: Use getWorldLocation() for actual server-side true tile,
+			// not getLocalLocation() which returns the interpolated visual position
+			if (config.highlightNpcTrueTile())
 			{
-				Polygon tilePoly = Perspective.getCanvasTilePoly(client, npc.getLocalLocation());
-				if (tilePoly != null)
+				WorldPoint wp = npc.getWorldLocation();
+				if (wp != null)
 				{
-					graphics.setColor(styleColor);
-					graphics.setStroke(NPC_STROKE);
-					graphics.drawPolygon(tilePoly);
+					LocalPoint lp = LocalPoint.fromWorld(client, wp);
+					if (lp != null)
+					{
+						// #12: Use NPC size for multi-tile NPCs (e.g. 3x3 bosses)
+						int npcSize = 1;
+						NPCComposition composition = npc.getComposition();
+						if (composition != null)
+						{
+							npcSize = composition.getSize();
+						}
 
-					Color fill = new Color(styleColor.getRed(), styleColor.getGreen(), styleColor.getBlue(), 35);
-					graphics.setColor(fill);
-					graphics.fillPolygon(tilePoly);
+						Polygon tilePoly;
+						if (npcSize > 1)
+						{
+							tilePoly = Perspective.getCanvasTileAreaPoly(client, lp, npcSize);
+						}
+						else
+						{
+							tilePoly = Perspective.getCanvasTilePoly(client, lp);
+						}
+
+						if (tilePoly != null)
+						{
+							graphics.setColor(styleColor);
+							graphics.setStroke(NPC_STROKE);
+							graphics.drawPolygon(tilePoly);
+
+							Color fill = new Color(styleColor.getRed(), styleColor.getGreen(), styleColor.getBlue(), 35);
+							graphics.setColor(fill);
+							graphics.fillPolygon(tilePoly);
+						}
+					}
 				}
 			}
 
