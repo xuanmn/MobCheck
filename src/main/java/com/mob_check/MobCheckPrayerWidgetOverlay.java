@@ -30,6 +30,9 @@ public class MobCheckPrayerWidgetOverlay extends Overlay
 	private static final Font WIDGET_FONT = new Font("Arial", Font.BOLD, 13);
 	private static final Stroke THICK_STROKE = new BasicStroke(3f);
 	private static final Stroke REGULAR_STROKE = new BasicStroke(2f);
+	private static final Color ACTIVE_BORDER_COLOR = new Color(0, 255, 60, 220);
+	private static final Color DANGER_BORDER_COLOR = new Color(255, 30, 30, 240);
+	private static final Color DANGER_FILL_COLOR = new Color(255, 0, 0, 50);
 
 	@Inject
 	public MobCheckPrayerWidgetOverlay(Client client, MobCheckPlugin plugin, MobCheckConfig config)
@@ -97,17 +100,17 @@ public class MobCheckPrayerWidgetOverlay extends Overlay
 			if (isProtected)
 			{
 				// Green border when correctly active
-				graphics.setColor(new Color(0, 255, 60, 220));
+				graphics.setColor(ACTIVE_BORDER_COLOR);
 				graphics.setStroke(REGULAR_STROKE);
 				graphics.drawRect(bounds.x, bounds.y, bounds.width, bounds.height);
 			}
 			else if (isUrgent && config.flashWrongPrayerWidget())
 			{
 				// Emergency red pulsing outline and semi-transparent flash
-				graphics.setColor(new Color(255, 30, 30, 240));
+				graphics.setColor(DANGER_BORDER_COLOR);
 				graphics.setStroke(THICK_STROKE);
 				graphics.drawRect(bounds.x - 1, bounds.y - 1, bounds.width + 2, bounds.height + 2);
-				graphics.setColor(new Color(255, 0, 0, 50));
+				graphics.setColor(DANGER_FILL_COLOR);
 				graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
 			}
 			else

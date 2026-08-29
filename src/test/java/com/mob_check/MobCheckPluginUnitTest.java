@@ -888,4 +888,31 @@ public class MobCheckPluginUnitTest
 		assertTrue(priority.isPresent());
 		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, priority.get().prayerStyle);
 	}
+
+	@Test
+	public void testNpcDespawnedPurgesMeleeAttack()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		NPC npc = mock(NPC.class);
+		when(npc.getName()).thenReturn("Jal-ImKot");
+		when(npc.getInteracting()).thenReturn(player);
+		when(npc.getIndex()).thenReturn(55);
+		when(npc.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JAL_IMKOT_MELEE);
+
+		AnimationChanged animEvent = new AnimationChanged();
+		animEvent.setActor(npc);
+		plugin.onAnimationChanged(animEvent);
+
+		tickAndRefresh();
+		assertEquals(1, plugin.getActiveAttacks().size());
+
+		// Trigger NPC despawn
+		net.runelite.api.events.NpcDespawned despawnEvent = new net.runelite.api.events.NpcDespawned(npc);
+		plugin.onNpcDespawned(despawnEvent);
+
+		tickAndRefresh();
+		assertEquals(0, plugin.getActiveAttacks().size());
+	}
 }

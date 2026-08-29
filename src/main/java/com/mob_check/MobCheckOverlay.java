@@ -31,6 +31,9 @@ public class MobCheckOverlay extends Overlay
 	private static final Font OVERHEAD_FONT = new Font("Arial", Font.BOLD, 18);
 	private static final Stroke RING_STROKE = new BasicStroke(3f);
 	private static final Stroke SCREEN_FLASH_STROKE = new BasicStroke(16f);
+	private static final Color PROGRESS_RING_BG_COLOR = new Color(0, 0, 0, 120);
+	private static final Color PROTECTED_COLOR = new Color(0, 255, 60);
+	private static final Color INFOBOX_BG_COLOR = new Color(0, 0, 0, 160);
 
 	@Inject
 	public MobCheckOverlay(Client client, MobCheckPlugin plugin, MobCheckConfig config, SpriteManager spriteManager)
@@ -89,7 +92,16 @@ public class MobCheckOverlay extends Overlay
 		{
 			panelComponent.getChildren().clear();
 
-			boolean hasManticoreCombo = attacks.stream().anyMatch(a -> a.isManticoreCombo);
+			boolean hasManticoreCombo = false;
+			for (int i = 0; i < attacks.size(); i++)
+			{
+				if (attacks.get(i).isManticoreCombo)
+				{
+					hasManticoreCombo = true;
+					break;
+				}
+			}
+
 			if (hasManticoreCombo && config.showComboSequence())
 			{
 				panelComponent.getChildren().add(TitleComponent.builder()
@@ -128,7 +140,7 @@ public class MobCheckOverlay extends Overlay
 					}
 
 					infoBox.setColor(textColor);
-					infoBox.setBackgroundColor(new Color(0, 0, 0, 160));
+					infoBox.setBackgroundColor(INFOBOX_BG_COLOR);
 					panelComponent.getChildren().add(infoBox);
 					count++;
 				}
@@ -162,7 +174,7 @@ public class MobCheckOverlay extends Overlay
 				int ringY = spriteY + (sprite.getHeight() - ringSize) / 2;
 
 				// Background ring
-				graphics.setColor(new Color(0, 0, 0, 120));
+				graphics.setColor(PROGRESS_RING_BG_COLOR);
 				graphics.setStroke(RING_STROKE);
 				graphics.drawOval(ringX, ringY, ringSize, ringSize);
 
@@ -170,7 +182,7 @@ public class MobCheckOverlay extends Overlay
 				double progressRatio = (double) attack.ticks / attack.initialTicks;
 				int arcAngle = (int) (360.0 * Math.max(0.0, Math.min(1.0, progressRatio)));
 
-				Color ringColor = isProtected ? new Color(0, 255, 60) : (isUrgent ? Color.RED : attack.prayerStyle.getColor());
+				Color ringColor = isProtected ? PROTECTED_COLOR : (isUrgent ? Color.RED : attack.prayerStyle.getColor());
 				graphics.setColor(ringColor);
 				graphics.drawArc(ringX, ringY, ringSize, ringSize, 90, -arcAngle);
 			}
@@ -179,7 +191,7 @@ public class MobCheckOverlay extends Overlay
 			graphics.drawImage(sprite, spriteX, spriteY, null);
 
 			// Draw tick countdown next to the icon
-			Color textColor = isProtected ? new Color(0, 255, 60) : (isUrgent ? Color.RED : Color.WHITE);
+			Color textColor = isProtected ? PROTECTED_COLOR : (isUrgent ? Color.RED : Color.WHITE);
 			graphics.setColor(textColor);
 			graphics.setFont(OVERHEAD_FONT);
 			graphics.drawString(attack.ticks + "t", point.getX() - 5, point.getY() + (sprite.getHeight() / 2) + 5);

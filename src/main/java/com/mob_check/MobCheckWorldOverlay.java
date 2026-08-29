@@ -34,6 +34,10 @@ public class MobCheckWorldOverlay extends Overlay
 
 	private static final Font NPC_FONT = new Font("Arial", Font.BOLD, 14);
 	private static final Stroke NPC_STROKE = new BasicStroke(2f);
+	private static final Color DEFAULT_TILE_FILL = new Color(255, 255, 255, 35);
+	private static final Color DEFAULT_HULL_FILL = new Color(255, 255, 255, 25);
+
+	private final Set<Integer> renderedNpcs = new HashSet<>();
 
 	@Inject
 	public MobCheckWorldOverlay(Client client, MobCheckPlugin plugin, MobCheckConfig config)
@@ -60,18 +64,19 @@ public class MobCheckWorldOverlay extends Overlay
 			return null;
 		}
 
-		Set<Integer> renderedNpcs = new HashSet<>();
+		renderedNpcs.clear();
 
 		for (MobCheckPlugin.AttackState attack : attacks)
 		{
 			NPC npc = attack.sourceNpc;
-			if (npc == null || renderedNpcs.contains(npc.getIndex()) || npc.isDead())
+			if (npc == null || npc.isDead() || !renderedNpcs.add(npc.getIndex()))
 			{
 				continue;
 			}
 
-			renderedNpcs.add(npc.getIndex());
 			Color styleColor = attack.prayerStyle != null ? attack.prayerStyle.getColor() : Color.WHITE;
+			Color tileFill = attack.prayerStyle != null ? attack.prayerStyle.getTileFillColor() : DEFAULT_TILE_FILL;
+			Color hullFill = attack.prayerStyle != null ? attack.prayerStyle.getHullFillColor() : DEFAULT_HULL_FILL;
 
 			// 1. Draw True Tile polygon on the ground
 			// #11: Use getWorldLocation() for actual server-side true tile,
@@ -108,8 +113,7 @@ public class MobCheckWorldOverlay extends Overlay
 							graphics.setStroke(NPC_STROKE);
 							graphics.drawPolygon(tilePoly);
 
-							Color fill = new Color(styleColor.getRed(), styleColor.getGreen(), styleColor.getBlue(), 35);
-							graphics.setColor(fill);
+							graphics.setColor(tileFill);
 							graphics.fillPolygon(tilePoly);
 						}
 					}
@@ -126,8 +130,7 @@ public class MobCheckWorldOverlay extends Overlay
 					graphics.setStroke(NPC_STROKE);
 					graphics.draw(hull);
 
-					Color fill = new Color(styleColor.getRed(), styleColor.getGreen(), styleColor.getBlue(), 25);
-					graphics.setColor(fill);
+					graphics.setColor(hullFill);
 					graphics.fill(hull);
 				}
 			}
