@@ -738,4 +738,153 @@ public class MobCheckPluginUnitTest
 		assertEquals(5, attacks.get(0).initialTicks);
 		assertEquals(3, attacks.get(0).ticks);
 	}
+
+	@Test
+	public void testDagannothRexMeleeAttack()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		NPC rex = mock(NPC.class);
+		when(rex.getName()).thenReturn("Dagannoth Rex");
+		when(rex.getInteracting()).thenReturn(player);
+		when(rex.getIndex()).thenReturn(101);
+		when(rex.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.DAGANNOTH_REX_MELEE);
+
+		AnimationChanged event = new AnimationChanged();
+		event.setActor(rex);
+		plugin.onAnimationChanged(event);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(1, attacks.size());
+		assertEquals(MobCheckPlugin.PrayerStyle.MELEE, attacks.get(0).prayerStyle);
+		assertEquals("Pray Melee", attacks.get(0).getStyleDisplayName());
+		assertEquals("Dagannoth Rex", attacks.get(0).npcName);
+		assertEquals(3, attacks.get(0).ticks); // 4 initialized, decremented by 1 on game tick
+	}
+
+	@Test
+	public void testDagannothPrimeMagicProjectile()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		NPC primeNpc = mock(NPC.class);
+		when(primeNpc.getName()).thenReturn("Dagannoth Prime");
+
+		Projectile proj = mock(Projectile.class);
+		when(proj.getTargetActor()).thenReturn(player);
+		when(proj.getSourceActor()).thenReturn(primeNpc);
+		when(proj.getId()).thenReturn(MobCheckPlugin.ProjectileID.DAGANNOTH_PRIME_MAGIC);
+		when(proj.getRemainingCycles()).thenReturn(90); // 3 ticks
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(proj));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(1, attacks.size());
+		assertEquals(MobCheckPlugin.PrayerStyle.MAGIC, attacks.get(0).prayerStyle);
+		assertEquals("Pray Magic", attacks.get(0).getStyleDisplayName());
+		assertEquals("Dagannoth Prime", attacks.get(0).npcName);
+		assertEquals(3, attacks.get(0).ticks);
+	}
+
+	@Test
+	public void testDagannothSupremeRangedProjectiles()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		NPC supremeNpc = mock(NPC.class);
+		when(supremeNpc.getName()).thenReturn("Dagannoth Supreme");
+
+		// Test primary spine projectile (475)
+		Projectile proj1 = mock(Projectile.class);
+		when(proj1.getTargetActor()).thenReturn(player);
+		when(proj1.getSourceActor()).thenReturn(supremeNpc);
+		when(proj1.getId()).thenReturn(MobCheckPlugin.ProjectileID.DAGANNOTH_SUPREME_RANGE);
+		when(proj1.getRemainingCycles()).thenReturn(60); // 2 ticks
+
+		// Test secondary spine projectile (476)
+		Projectile proj2 = mock(Projectile.class);
+		when(proj2.getTargetActor()).thenReturn(player);
+		when(proj2.getSourceActor()).thenReturn(supremeNpc);
+		when(proj2.getId()).thenReturn(MobCheckPlugin.ProjectileID.DAGANNOTH_SUPREME_RANGE_2);
+		when(proj2.getRemainingCycles()).thenReturn(120); // 4 ticks
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(proj1, proj2));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(2, attacks.size());
+		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, attacks.get(0).prayerStyle);
+		assertEquals("Pray Range", attacks.get(0).getStyleDisplayName());
+		assertEquals("Dagannoth Supreme", attacks.get(0).npcName);
+		assertEquals(2, attacks.get(0).ticks);
+
+		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, attacks.get(1).prayerStyle);
+		assertEquals("Pray Range", attacks.get(1).getStyleDisplayName());
+		assertEquals("Dagannoth Supreme", attacks.get(1).npcName);
+		assertEquals(4, attacks.get(1).ticks);
+	}
+
+	@Test
+	public void testDagannothKingsMultiAttackPriority()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		// Rex melee attack registered via animation (4 initial ticks)
+		NPC rex = mock(NPC.class);
+		when(rex.getName()).thenReturn("Dagannoth Rex");
+		when(rex.getInteracting()).thenReturn(player);
+		when(rex.getIndex()).thenReturn(201);
+		when(rex.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.DAGANNOTH_REX_MELEE);
+
+		AnimationChanged event = new AnimationChanged();
+		event.setActor(rex);
+		plugin.onAnimationChanged(event);
+
+		// Prime magic projectile (3 ticks)
+		Projectile primeProj = mock(Projectile.class);
+		when(primeProj.getTargetActor()).thenReturn(player);
+		when(primeProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.DAGANNOTH_PRIME_MAGIC);
+		when(primeProj.getRemainingCycles()).thenReturn(90);
+
+		// Supreme ranged projectile (2 ticks)
+		Projectile supremeProj = mock(Projectile.class);
+		when(supremeProj.getTargetActor()).thenReturn(player);
+		when(supremeProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.DAGANNOTH_SUPREME_RANGE);
+		when(supremeProj.getRemainingCycles()).thenReturn(60);
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(primeProj, supremeProj));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(3, attacks.size());
+
+		// Priority 1: Supreme (2t Range)
+		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, attacks.get(0).prayerStyle);
+		assertEquals("Dagannoth Supreme", attacks.get(0).npcName);
+		assertEquals(2, attacks.get(0).ticks);
+
+		// Priority 2: Prime (3t Magic)
+		assertEquals(MobCheckPlugin.PrayerStyle.MAGIC, attacks.get(1).prayerStyle);
+		assertEquals("Dagannoth Prime", attacks.get(1).npcName);
+		assertEquals(3, attacks.get(1).ticks);
+
+		// Priority 3: Rex (3t Melee after tick decrement from 4)
+		assertEquals(MobCheckPlugin.PrayerStyle.MELEE, attacks.get(2).prayerStyle);
+		assertEquals("Dagannoth Rex", attacks.get(2).npcName);
+		assertEquals(3, attacks.get(2).ticks);
+
+		// Verify getPriorityAttack() returns Supreme
+		Optional<MobCheckPlugin.AttackState> priority = plugin.getPriorityAttack();
+		assertTrue(priority.isPresent());
+		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, priority.get().prayerStyle);
+	}
 }

@@ -87,6 +87,11 @@ public class MobCheckPlugin extends Plugin
 		public static final int TORMENTED_DEMON_MAGIC = 1885;
 		public static final int TORMENTED_DEMON_RANGE = 1884;
 
+		// Dagannoth Kings
+		public static final int DAGANNOTH_PRIME_MAGIC = 162;
+		public static final int DAGANNOTH_SUPREME_RANGE = 475;
+		public static final int DAGANNOTH_SUPREME_RANGE_2 = 476;
+
 		private ProjectileID() {}
 	}
 
@@ -123,6 +128,7 @@ public class MobCheckPlugin extends Plugin
 		public static final int MUSPAH_MELEE_ATTACK = 9920;
 		public static final int MUSPAH_MELEE_SWIPE = 9922;
 		public static final int TORMENTED_DEMON_MELEE = 10922;
+		public static final int DAGANNOTH_REX_MELEE = 2853;
 
 		private AnimationID() {}
 	}
@@ -369,6 +375,14 @@ public class MobCheckPlugin extends Plugin
 		PROJECTILE_NPC_NAMES.put(ProjectileID.TORMENTED_DEMON_MAGIC, "Tormented Demon (Magic)");
 		PROJECTILE_STYLES.put(ProjectileID.TORMENTED_DEMON_RANGE, "Pray Range");
 		PROJECTILE_NPC_NAMES.put(ProjectileID.TORMENTED_DEMON_RANGE, "Tormented Demon (Range)");
+
+		// Dagannoth Kings
+		PROJECTILE_STYLES.put(ProjectileID.DAGANNOTH_PRIME_MAGIC, "Pray Magic");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.DAGANNOTH_PRIME_MAGIC, "Dagannoth Prime");
+		PROJECTILE_STYLES.put(ProjectileID.DAGANNOTH_SUPREME_RANGE, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.DAGANNOTH_SUPREME_RANGE, "Dagannoth Supreme");
+		PROJECTILE_STYLES.put(ProjectileID.DAGANNOTH_SUPREME_RANGE_2, "Pray Range");
+		PROJECTILE_NPC_NAMES.put(ProjectileID.DAGANNOTH_SUPREME_RANGE_2, "Dagannoth Supreme");
 	}
 
 	// Region-gated projectile mappings (only active in specific regions)
@@ -414,6 +428,7 @@ public class MobCheckPlugin extends Plugin
 		MELEE_ANIMATIONS.put(AnimationID.MUSPAH_MELEE_ATTACK, 4);
 		MELEE_ANIMATIONS.put(AnimationID.MUSPAH_MELEE_SWIPE, 4);
 		MELEE_ANIMATIONS.put(AnimationID.TORMENTED_DEMON_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.DAGANNOTH_REX_MELEE, 4);
 	}
 
 	@Provides
