@@ -1,136 +1,165 @@
 # Mob Check Plugin
 
-A dynamic PvM Priority Prayer Helper plugin for the [RuneLite](https://runelite.net/) client, specialized for high-stakes encounters like **The Inferno** and **Fortis Colosseum**. It tracks and displays the exact ticks remaining before incoming NPC projectile attacks and melee attacks hit the player, helping you time protection prayers and 1-tick prayer flicking accurately.
+[![RuneLite Compatible](https://img.shields.io/badge/RuneLite-Plugin-orange.svg?style=flat-square)](https://runelite.net/)
+[![Java](https://img.shields.io/badge/Java-11%2B-blue.svg?style=flat-square)](https://openjdk.org/)
+[![Gradle](https://img.shields.io/badge/Gradle-8.10-02303a.svg?style=flat-square)](https://gradle.org/)
+[![License](https://img.shields.io/badge/License-BSD--2--Clause-green.svg?style=flat-square)](LICENSE)
+
+**Mob Check** is an intelligent, high-performance PvM Priority Prayer Helper plugin for the [RuneLite](https://runelite.net/) client. Built specifically for high-intensity PvM encounters—such as **The Inferno**, **Fortis Colosseum**, **Tormented Demons**, **Phantom Muspah**, and **Dagannoth Kings**—Mob Check calculates and displays the exact server ticks remaining before incoming NPC attacks hit the player, helping you execute flawless prayer timing and 1-tick prayer flicks with complete confidence.
 
 ---
 
-## Features
+## Key Features
 
-- **Overhead Countdown & Progress Arc**: Renders the style-specific protection prayer icon (Magic, Range, Melee), visual countdown progress arc, and remaining ticks directly above your character. Color codes based on protection status and turns urgent red within the warning threshold.
-- **Prayer Book Widget Highlights**: Draws a glowing box outline directly around the required protection prayer on your Prayer Tab interface:
-  - 🟢 **Green Border**: Correct protection prayer is currently active.
-  - 🔴 **Pulsing Red Border**: Unprotected / wrong prayer active with an attack landing in $\le 1$ tick.
-- **On-Widget Tick Countdown**: Displays the exact tick count directly over the prayer button in your Prayer Tab for fast, focused clicking.
-- **Screen Danger Vignette Flash**: Flashes a red danger border around your game screen when an attack hits in $\le 1$ tick and your active prayer is wrong.
-- **Attacking NPC Outlines & True Tiles**: Highlights the model hull and ground true tile of whichever monster is currently attacking you, color-coded by incoming combat style (Cyan for Magic, Green for Range, Orange/Red for Melee).
-- **Distinct Audio Alerts & Emergency Cues**:
-  - Configurable sound effect per attack style (Magic, Range, Melee).
-  - Emergency buzzer/audio alert when unprotected against an imminent attack.
-- **Sidebar Info Box & Manticore Combo Sequence**: Displays active upcoming threats sorted by impact tick, including multi-hit rapid combo sequences (like Colosseum Manticore 3-hit cycles).
-- **Specialized Endgame Coverage**:
-  - **The Inferno**:
-    - **Jal-Ak (Blobs)**: Magic (1380) and Ranged (1378) projectiles, plus melee animation (7582).
-    - **Jal-AkRek (Mini-Blobs)**: Magic (1381) and Ranged (1379) projectiles.
-    - **Jal-MejRah (Bats)**: Ranged projectile (1382) and attack animation (7578).
-    - **Jal-Xil (Ranger)**: Ranged projectile (1376) and melee punch animation (7604).
-    - **Jal-Zek (Mage)**: Magic projectile (1374) and melee punch animation (7612).
-    - **Jal-ImKot (Meleer)**: Melee attack animation (7597).
-    - **JalTok-Jad**: Magic projectile (448), Ranged projectile (449), and Melee attack animation (7590).
-  - **Fortis Colosseum**:
-    - **Manticore**: 3-hit rapid attack sequence — Magic projectile (2687) and Ranged projectile (2688).
-    - **Serpent Shaman**: Magic projectile (2685).
-    - **Javelinic Colossus**: Heavy Ranged javelin projectile (2686).
-    - **Jaguar Warrior**: Fast Melee attack animation (10871).
-    - **Minotaur**: Melee attack animation (10872).
-    - **Fremennik Warband**: Berserker melee animation (10873), Archer projectile (15), Seer magic projectile (160).
-    - **Shockwave Colossus**: Melee shockwave animation (10874).
-    - **Sol Heredit**: Melee swing animations (10875, 10876, 10877) and special projectile (2689).
-  - **Tormented Demons**:
-    - Magic projectile (1885).
-    - Ranged projectile (1884).
-    - Melee claw attack animation (10922).
-  - **Phantom Muspah**:
-    - Corruption Magic projectile (2329).
-    - Ranged attack projectile (2330).
-    - Melee attack / swipe animations (9920, 9922).
-  - **Dagannoth Kings**:
-    - **Dagannoth Rex**: Melee attack swipe animations (2853, 2851).
-    - **Dagannoth Prime**: Water Wave Magic projectile (162, region-gated to DK Lair).
-    - **Dagannoth Supreme**: Spine throw Ranged projectiles (475, 476).
-  - **Additional PvM Support**: Zulrah, Vorkath, Cerberus, Alchemical Hydra (Magic 1663, Range 1662), Hunllef (The Gauntlet), Demonic Gorillas, God Wars Dungeon bosses (Zilyana 2t, Graardor 6t, K'ril 6t), and standard slayer monsters.
+### 1. Overhead Countdown & Progress Arc
+- **Visual Overhead Indicator**: Displays the required protection prayer icon ([Magic](https://oldschool.runescape.wiki/w/Protect_from_Magic), [Missiles / Range](https://oldschool.runescape.wiki/w/Protect_from_Missiles), [Melee](https://oldschool.runescape.wiki/w/Protect_from_Melee)) and remaining tick count directly above your character.
+- **Tick Progress Arc**: Renders a smooth circular countdown progress ring around the overhead prayer sprite showing the travel progression of incoming projectiles from launch to impact.
+- **Dynamic Urgency Color-Coding**:
+  - 🟢 **Green**: Correct protection prayer is active.
+  - ⚪ **White / Style Color**: Safe countdown period ($> 1\text{t}$).
+  - 🔴 **Red**: Urgent impact threshold ($\le 1\text{t}$) when prayer is not active.
+
+### 2. Interactive Prayer Tab Widget Highlights
+- **Active Prayer Status Border**:
+  - 🟢 **Solid Green Outline**: Correct protection prayer is currently active.
+  - 🔴 **Pulsing Red Border & Flash**: Unprotected or wrong prayer active with an attack landing in $\le 1$ tick.
+  - 🔵 **Style-Coded Outline**: Highlights the required prayer when safe ($> 1\text{t}$).
+- **On-Widget Tick Counter**: Renders the exact tick countdown directly over the corresponding prayer button in your Prayer Tab for fast, focused clicking without looking away from your inventory/prayers.
+
+### 3. Screen Danger Vignette Flash
+- Flashes a high-visibility red danger border across the game screen when an attack is $\le 1$ tick away and the player is not protected, giving you an instantaneous visual reflex cue.
+
+### 4. Attacking NPC Outlines & Ground True Tiles
+- **Model Hull Outline**: Highlights the 3D model convex hull of whichever monster is actively attacking you, color-coded by attack style (Cyan for Magic, Green for Range, Orange for Melee).
+- **Server-Side Ground True Tile**: Highlights the actual server tile location using `npc.getWorldLocation()`. Supports multi-tile boss scaling (e.g., $3\times3$ bosses like Sol Heredit, General Graardor, Dagannoth Rex).
+- **On-NPC Tick Timer**: Displays the attack countdown number above the attacking NPC's head.
+
+### 5. Configurable Audio Alerts & Emergency Cues
+- **Style-Specific Sounds**: Plays customizable sound effect IDs when the priority prayer style changes (Magic, Range, Melee).
+- **Emergency Wrong Prayer Buzzer**: Plays an emergency warning sound (Default ID: `2277`) when an attack is landing in $\le 1$ tick without the correct protection active.
+
+### 6. Top-Threat Queue & Manticore Combo Sequence Panel
+- **Sidebar Info Box**: Displays up to 4 upcoming attacks ordered by impact tick, showing prayer sprites and remaining ticks.
+- **Manticore 3-Hit Combo Visualizer**: Explicitly highlights rapid multi-hit combo cycles during Fortis Colosseum encounters.
 
 ---
 
-## Configuration Options
+## Supported Bosses & Monsters
 
-Inside the RuneLite Configuration Panel under **Mob Check**, you can customize:
+| Encounter / Category | Monster | Attack Styles & Mechanics Tracked | Projectile / Anim IDs |
+| :--- | :--- | :--- | :--- |
+| **The Inferno** | **Jal-Ak (Blob)** | Magic projectile, Ranged projectile, Melee bite | Proj: `1380` (M), `1378` (R)<br>Anim: `7582` (Melee) |
+| | **Jal-AkRek (Mini-Blobs)** | Magic and Ranged spit projectiles | Proj: `1381` (M), `1379` (R) |
+| | **Jal-MejRah (Bat)** | Ranged projectile & attack animation | Proj: `1382` (R)<br>Anim: `7578` (Melee) |
+| | **Jal-Xil (Ranger)** | Ranged boulder projectile & melee punch | Proj: `1376` (R)<br>Anim: `7604` (Melee) |
+| | **Jal-Zek (Mage)** | Magic blast projectile & melee punch | Proj: `1374` (M)<br>Anim: `7612` (Melee) |
+| | **Jal-ImKot (Meleer)** | Melee dig & swing animation | Anim: `7597` (Melee) |
+| | **JalTok-Jad** | Magic fireball, Ranged boulder, Melee slam | Proj: `448` (M), `449` (R)<br>Anim: `7590` (Melee) |
+| **Fortis Colosseum** | **Manticore** | 3-hit rapid sequence (Magic & Ranged projectiles) | Proj: `2687` (M), `2688` (R) |
+| | **Serpent Shaman** | Magic venom projectile | Proj: `2685` (M) |
+| | **Javelinic Colossus** | Heavy Ranged javelin projectile | Proj: `2686` (R) |
+| | **Jaguar Warrior** | Fast Melee blade attack | Anim: `10871` (Melee) |
+| | **Minotaur** | Melee club smash | Anim: `10872` (Melee) |
+| | **Fremennik Warband** | Archer projectile, Seer spell, Berserker axe *(Region-gated)* | Proj: `15` (R), `160` (M)<br>Anim: `10873` (Melee) |
+| | **Shockwave Colossus** | Melee shockwave slam | Anim: `10874` (Melee) |
+| | **Sol Heredit** | Sun projectile, Melee attacks, sweeps, and slams | Proj: `2689` (M)<br>Anim: `10875`, `10876`, `10877` |
+| **Tormented Demons** | **Tormented Demon** | Magic skull, Ranged spike, Melee claw attack | Proj: `1885` (M), `1884` (R)<br>Anim: `10922` (Melee) |
+| **Phantom Muspah** | **Phantom Muspah** | Corruption Magic wave, Ranged spikes, Melee swipes | Proj: `2329` (M), `2330` (R)<br>Anim: `9920`, `9922` (Melee) |
+| **Dagannoth Kings** | **Dagannoth Prime** | Water Wave magic projectile *(Region-gated to DK Lair)* | Proj: `162` (M) |
+| | **Dagannoth Supreme** | Spine throw ranged projectiles | Proj: `475` (R), `476` (R) |
+| | **Dagannoth Rex** | Melee claw swipes | Anim: `2853`, `2851` (Melee) |
+| **Additional Bosses** | **Zulrah** | Magic venom spit & Ranged dart projectiles | Proj: `1044` (M), `1046` (R) |
+| | **Vorkath** | Dragonfire Magic & Ranged dragonfire blast | Proj: `1481` (M), `1483` (R) |
+| | **Cerberus** | Magic fire, Ranged blast, Melee triple attack | Proj: `1243` (M), `1244` (R)<br>Anim: `4492` (Melee) |
+| | **Alchemical Hydra** | Lightning Magic & Poison Ranged projectiles | Proj: `1663` (M), `1662` (R) |
+| | **Hunllef (Gauntlet)** | Magic orb & Ranged crystal projectiles | Proj: `1707` (M), `1708` (R) |
+| | **Demonic Gorillas** | Boulder / orb projectiles & Melee sweep | Proj: `1302` (M), `1304` (R)<br>Anim: `7226` (Melee) |
+| | **God Wars Dungeon** | Zilyana (Magic `1220`, Melee 2t `6964`), Graardor (Melee 6t `7060`), K'ril (Magic `1211`, Melee 6t `6948`) | Proj: `1220`, `1211`<br>Anim: `6964`, `7060`, `6948` |
+| **Slayer Monsters** | **Abyssal Demons & Bloodvelds** | Melee attack animations | Anim: `2309`, `1552` |
+
+---
+
+## Configuration Reference
+
+Inside the RuneLite Configuration Panel under **Mob Check**, the following options can be customized:
 
 | Section | Setting | Default | Description |
 | :--- | :--- | :--- | :--- |
-| **Overhead & HUD** | `Show Overhead Icon` | `true` | Renders prayer icon and tick countdown above character. |
-| | `Show Tick Progress Arc` | `true` | Draws circular countdown progress ring around overhead icon. |
-| | `Warning Threshold` | `1` | Tick threshold at which indicators turn red for immediate urgency. |
-| **Prayer Book Highlights** | `Highlight Prayer Button` | `true` | Highlights the required prayer directly in your Prayer Tab. |
-| | `Show Ticks on Prayer Button` | `true` | Renders tick countdown number directly on the prayer button. |
-| | `Flash Wrong Prayer` | `true` | Pulses bright red on the prayer button when unprotected at 1 tick. |
-| **Danger & Warnings** | `Flash Screen on Wrong Prayer` | `true` | Flashes red screen border if unprotected on an imminent hit. |
-| | `Danger Flash Color` | `Red (Alpha 70)` | Color and opacity of the emergency screen flash. |
-| **Audio Alerts** | `Play Sound Alert` | `true` | Plays audio cue on priority prayer changes. |
-| | `Magic Sound ID` | `2266` | Sound effect ID for incoming Magic attacks. |
-| | `Range Sound ID` | `2266` | Sound effect ID for incoming Range attacks. |
-| | `Melee Sound ID` | `2266` | Sound effect ID for incoming Melee attacks. |
-| | `Wrong Prayer Emergency Sound` | `true` | Plays emergency sound if unprotected when an attack is 1 tick away. |
-| | `Wrong Prayer Sound ID` | `2277` | Sound effect ID for wrong prayer emergency warning. |
-| **NPC Threat & World** | `Highlight Attacking NPC` | `true` | Outlines the model/hull of the monster currently attacking you. |
-| | `Highlight NPC True Tile` | `true` | Draws the ground true tile of the attacking NPC. |
-| **Info Box & Sequences** | `Show Info Box` | `true` | Displays the upcoming threat queue panel. |
-| | `Show Manticore/Combo Sequence` | `true` | Displays rapid combo sequences (e.g. Manticore 3-hit combos) in order. |
-| | `Track Unknown Projectiles` | `false` | Fallback to Pray Magic for unrecognized projectiles targeting the player. |
+| **Overhead & HUD** | `Show Overhead Icon` | `true` | Renders the required prayer icon and tick countdown directly above your player character. |
+| | `Show Tick Progress Arc` | `true` | Draws a smooth circular countdown progress ring around the overhead prayer sprite. |
+| | `Warning Threshold` | `1` | Remaining tick count at which visual elements turn red for immediate urgency. |
+| **Prayer Book Highlights** | `Highlight Prayer Button` | `true` | Highlights the required protection prayer directly in the Prayer Tab interface. |
+| | `Show Ticks on Prayer Button` | `true` | Displays remaining ticks directly over the prayer button in the Prayer Tab. |
+| | `Flash Wrong Prayer` | `true` | Pulses a bright red border & fill over the required prayer button when unprotected at $\le 1$ tick. |
+| **Danger & Warnings** | `Flash Screen on Wrong Prayer` | `true` | Flashes a red screen border if unprotected when an incoming attack lands in $\le 1$ tick. |
+| | `Danger Flash Color` | `Red (Alpha 70)` | Color and transparency for the emergency screen flash border. |
+| **Audio Alerts** | `Play Sound Alert` | `true` | Plays an audio cue when the priority prayer style switches. |
+| | `Magic Sound ID` | `2266` | Sound effect ID played when Magic protection is required. |
+| | `Range Sound ID` | `2266` | Sound effect ID played when Range protection is required. |
+| | `Melee Sound ID` | `2266` | Sound effect ID played when Melee protection is required. |
+| | `Wrong Prayer Emergency Sound` | `true` | Plays an emergency sound warning if unprotected when an attack is 1 tick away. |
+| | `Wrong Prayer Sound ID` | `2277` | Sound effect ID used for the wrong prayer emergency warning. |
+| **NPC Threat & World** | `Highlight Attacking NPC` | `true` | Outlines the 3D model convex hull of the monster currently attacking you. |
+| | `Highlight NPC True Tile` | `true` | Draws the ground true tile of the attacking NPC (supporting multi-tile sizes). |
+| **Info Box & Sequences** | `Show Info Box` | `true` | Displays the upcoming threat queue in a side overlay panel. |
+| | `Show Manticore/Combo Sequence` | `true` | Highlights rapid combo sequences (e.g. Manticore 3-hit cycles) in order. |
+| | `Track Unknown Projectiles` | `false` | Fallback mode to Pray Magic for unrecognized projectiles targeting the player. |
 
 ---
 
-## Building and Development
+## Technical Architecture & Design
+
+1. **Per-Tick Cache Synchronization**:
+   - The attack list is rebuilt once per game tick inside `onGameTick()` via `buildActiveAttacks()` and cached in `cachedAttacks`.
+   - All visual overlays (`MobCheckOverlay`, `MobCheckPrayerWidgetOverlay`, `MobCheckWorldOverlay`) consume this cached snapshot, guaranteeing zero mid-frame tearing or coordinate drift across rendering layers.
+2. **Deterministic Projectile Cycle Conversion**:
+   - Projectile flight duration is converted from client engine cycles into game ticks using `(remainingCycles + 29) / 30`.
+   - The initial tick count is cached on first sight keyed by `System.identityHashCode(projectile)` to drive the overhead progress arc accurately.
+3. **Region-Gated Projectile Verification**:
+   - Generic engine projectile IDs (e.g. standard arrows `15` and elemental spells `160` in the Colosseum, or Water Wave `162` in Dagannoth Kings Lair) are strictly gated by player map region (`client.getMapRegions()`) to prevent false positives across the wider game world.
+4. **Melee Attack Lifecycle**:
+   - Tracked via `AnimationChanged` keyed by `NPC.getIndex()`.
+   - Decremented on each game tick and preserved until `ticks < 0` so the $0\text{t}$ impact tick remains visible to the player during the decisive tick.
+5. **Server-Side True Tile Calculation**:
+   - Calculated with `LocalPoint.fromWorld(client, npc.getWorldLocation())` rather than visual interpolated coordinates. Multi-tile NPCs are rendered via `Perspective.getCanvasTileAreaPoly(client, lp, npcSize)` using `npc.getComposition().getSize()`.
+
+---
+
+## Building & Development
 
 ### Prerequisites
-
-- **Java 11 through Java 23** (supported by Gradle 8.10).
-- If your default system JDK is newer, set `JAVA_HOME` to a compatible JDK (such as JDK 11 or 17):
+- **Java 11 through Java 23** (Gradle 8.10 wrapper included).
+- Make sure `JAVA_HOME` points to a compatible JDK (JDK 11 or JDK 17 recommended):
   ```bash
-  export JAVA_HOME=/path/to/compatible/jdk
+  export JAVA_HOME=$(/usr/libexec/java_home -v 11)  # macOS
+  # or export JAVA_HOME=/path/to/jdk-11
   ```
 
-### Build Commands
+### Build & Run Commands
 
-- **Compile and Test**:
-  ```bash
-  ./gradlew test
-  ```
-- **Build Plugin JAR**:
-  ```bash
-  ./gradlew build
-  ```
-- **Build Shaded / Standalone JAR**:
-  ```bash
-  ./gradlew shadowJar
-  ```
-- **Run Local Development Client**:
-  Launch RuneLite in developer mode with the plugin preloaded:
-  ```bash
-  ./gradlew run
-  ```
-  *(Or execute `MobCheckPluginTest.java` directly from your IDE).*
+| Command | Description |
+| :--- | :--- |
+| `./gradlew test` | Runs the full unit test suite (35+ unit tests covering all bosses, overlays, and edge cases). |
+| `./gradlew build` | Compiles the plugin classes and generates the distribution archive. |
+| `./gradlew shadowJar` | Builds a standalone shaded JAR including all runtime dependencies. |
+| `./gradlew run` | Launches a live development RuneLite client with the Mob Check plugin pre-injected. |
 
 ---
 
 ## Developer Tooling & MCP Server
 
-This repository includes a built-in [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server plugin (`.agents/plugins/runelite-osrs-docs/`) that connects AI agents and developer tooling directly to:
-1. **[RuneLite API Javadocs](https://static.runelite.net/runelite-api/apidocs/)**
-2. **[Old School RuneScape Wiki](https://oldschool.runescape.wiki/)**
+This repository includes a built-in [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server (`.agents/plugins/runelite-osrs-docs/`) that provides LLM assistants and developer tooling with live indexed access to:
+- **[RuneLite API Javadocs](https://static.runelite.net/runelite-api/apidocs/)**: Classes, interfaces, methods, fields, events, constants, and widget hierarchies.
+- **[Old School RuneScape Wiki](https://oldschool.runescape.wiki/)**: Monster mechanics, combat stats, projectile IDs, animation IDs, and tick timings.
 
-### Available MCP Tools
-
-| Tool | Purpose |
-| :--- | :--- |
-| `search_runelite_javadocs` | Indexed search for classes, interfaces, enums, methods, fields, events, constants, and packages. |
-| `get_runelite_javadoc` | Retrieve full Javadoc documentation with method signatures, return types, parameters, and comments. |
-| `search_osrs_wiki` | Search the OSRS Wiki for monsters, items, mechanics, drop tables, player slang aliases, quests, and formulas. |
-| `get_osrs_wiki_page` | Fetch page extracts, combat mechanics, monster stats, or specific section text. |
-| `get_osrs_wiki_sections` | List table of contents and section headings for any wiki page. |
-
-### Running & Testing MCP Tools
-
+### Running MCP Tests
 ```bash
 cd .agents/plugins/runelite-osrs-docs
 npm test
 ```
+
+---
+
+## License
+
+This project is open-source software licensed under the **BSD 2-Clause License**. See [LICENSE](LICENSE) for details.
