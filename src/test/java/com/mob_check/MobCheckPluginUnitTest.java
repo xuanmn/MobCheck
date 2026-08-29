@@ -491,6 +491,7 @@ public class MobCheckPluginUnitTest
 		assertEquals("Vorkath", attacks.get(1).npcName);
 		assertEquals("Cerberus", attacks.get(2).npcName);
 		assertEquals("Alchemical Hydra", attacks.get(3).npcName);
+		assertEquals(MobCheckPlugin.PrayerStyle.MAGIC, attacks.get(3).prayerStyle);
 		assertEquals("Hunllef", attacks.get(4).npcName);
 		assertEquals("Demonic Gorilla", attacks.get(5).npcName);
 	}
@@ -770,6 +771,7 @@ public class MobCheckPluginUnitTest
 	{
 		Player player = mock(Player.class);
 		when(client.getLocalPlayer()).thenReturn(player);
+		when(client.getMapRegions()).thenReturn(new int[]{11589}); // DK Lair region
 
 		NPC primeNpc = mock(NPC.class);
 		when(primeNpc.getName()).thenReturn("Dagannoth Prime");
@@ -790,6 +792,26 @@ public class MobCheckPluginUnitTest
 		assertEquals("Pray Magic", attacks.get(0).getStyleDisplayName());
 		assertEquals("Dagannoth Prime", attacks.get(0).npcName);
 		assertEquals(3, attacks.get(0).ticks);
+	}
+
+	@Test
+	public void testDagannothPrimeIgnoredOutsideLair()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+		when(client.getMapRegions()).thenReturn(new int[]{12850}); // Non-DK region
+
+		Projectile proj = mock(Projectile.class);
+		when(proj.getTargetActor()).thenReturn(player);
+		when(proj.getId()).thenReturn(MobCheckPlugin.ProjectileID.DAGANNOTH_PRIME_MAGIC);
+		when(proj.getRemainingCycles()).thenReturn(90);
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(proj));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(0, attacks.size());
 	}
 
 	@Test
@@ -837,6 +859,7 @@ public class MobCheckPluginUnitTest
 	{
 		Player player = mock(Player.class);
 		when(client.getLocalPlayer()).thenReturn(player);
+		when(client.getMapRegions()).thenReturn(new int[]{11589}); // DK Lair region
 
 		// Rex melee attack registered via animation (4 initial ticks)
 		NPC rex = mock(NPC.class);
@@ -914,5 +937,85 @@ public class MobCheckPluginUnitTest
 
 		tickAndRefresh();
 		assertEquals(0, plugin.getActiveAttacks().size());
+	}
+
+	@Test
+	public void testDagannothRexMeleeVariant2()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		NPC rex = mock(NPC.class);
+		when(rex.getName()).thenReturn("Dagannoth Rex");
+		when(rex.getInteracting()).thenReturn(player);
+		when(rex.getIndex()).thenReturn(102);
+		when(rex.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.DAGANNOTH_REX_MELEE_2);
+
+		AnimationChanged event = new AnimationChanged();
+		event.setActor(rex);
+		plugin.onAnimationChanged(event);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(1, attacks.size());
+		assertEquals(MobCheckPlugin.PrayerStyle.MELEE, attacks.get(0).prayerStyle);
+		assertEquals("Dagannoth Rex", attacks.get(0).npcName);
+		assertEquals(3, attacks.get(0).ticks);
+	}
+
+	@Test
+	public void testBossMeleeAttackTickDurations()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		// Zilyana 2-tick melee
+		NPC zilyana = mock(NPC.class);
+		when(zilyana.getName()).thenReturn("Commander Zilyana");
+		when(zilyana.getInteracting()).thenReturn(player);
+		when(zilyana.getIndex()).thenReturn(301);
+		when(zilyana.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.ZILYANA_MELEE);
+
+		AnimationChanged eventZil = new AnimationChanged();
+		eventZil.setActor(zilyana);
+		plugin.onAnimationChanged(eventZil);
+
+		// Graardor 6-tick melee
+		NPC graardor = mock(NPC.class);
+		when(graardor.getName()).thenReturn("General Graardor");
+		when(graardor.getInteracting()).thenReturn(player);
+		when(graardor.getIndex()).thenReturn(302);
+		when(graardor.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.GRAARDOR_MELEE);
+
+		AnimationChanged eventGra = new AnimationChanged();
+		eventGra.setActor(graardor);
+		plugin.onAnimationChanged(eventGra);
+
+		// Gorilla 5-tick melee
+		NPC gorilla = mock(NPC.class);
+		when(gorilla.getName()).thenReturn("Demonic Gorilla");
+		when(gorilla.getInteracting()).thenReturn(player);
+		when(gorilla.getIndex()).thenReturn(303);
+		when(gorilla.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.DEMONIC_GORILLA_MELEE);
+
+		AnimationChanged eventGor = new AnimationChanged();
+		eventGor.setActor(gorilla);
+		plugin.onAnimationChanged(eventGor);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(3, attacks.size());
+
+		// Zilyana: 2 initial ticks - 1 tick = 1 remaining
+		assertEquals("Commander Zilyana", attacks.get(0).npcName);
+		assertEquals(1, attacks.get(0).ticks);
+
+		// Gorilla: 5 initial ticks - 1 tick = 4 remaining
+		assertEquals("Demonic Gorilla", attacks.get(1).npcName);
+		assertEquals(4, attacks.get(1).ticks);
+
+		// Graardor: 6 initial ticks - 1 tick = 5 remaining
+		assertEquals("General Graardor", attacks.get(2).npcName);
+		assertEquals(5, attacks.get(2).ticks);
 	}
 }

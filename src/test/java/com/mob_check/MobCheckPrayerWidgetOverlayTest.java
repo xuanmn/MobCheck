@@ -69,7 +69,7 @@ public class MobCheckPrayerWidgetOverlayTest
 	@Test
 	public void testRenderWidgetHighlightProtected()
 	{
-		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(2, "Pray Magic", "Jal-Zek");
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
 		when(plugin.getPriorityAttack()).thenReturn(Optional.of(attack));
 		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.MAGIC)).thenReturn(true);
 
@@ -89,7 +89,7 @@ public class MobCheckPrayerWidgetOverlayTest
 	@Test
 	public void testRenderWidgetHighlightWrongPrayerAt1Tick()
 	{
-		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(1, "Pray Range", "Jal-Xil");
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.RANGE, "Jal-Xil");
 		when(plugin.getPriorityAttack()).thenReturn(Optional.of(attack));
 		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.RANGE)).thenReturn(false);
 
@@ -108,7 +108,7 @@ public class MobCheckPrayerWidgetOverlayTest
 	@Test
 	public void testRenderFallbackToParentChildren()
 	{
-		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(3, "Pray Melee", "Jal-ImKot");
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(3, MobCheckPlugin.PrayerStyle.MELEE, "Jal-ImKot");
 		when(plugin.getPriorityAttack()).thenReturn(Optional.of(attack));
 		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.MELEE)).thenReturn(false);
 
@@ -138,7 +138,7 @@ public class MobCheckPrayerWidgetOverlayTest
 	@Test
 	public void testRenderHiddenWidgetReturnsNull()
 	{
-		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(1, "Pray Magic", "Jal-Zek");
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
 		when(plugin.getPriorityAttack()).thenReturn(Optional.of(attack));
 
 		Widget widget = mock(Widget.class);
@@ -154,7 +154,7 @@ public class MobCheckPrayerWidgetOverlayTest
 		when(config.highlightPrayerWidget()).thenReturn(false);
 		when(config.showWidgetTicks()).thenReturn(true);
 
-		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(2, "Pray Magic", "Jal-Zek");
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
 		when(plugin.getPriorityAttack()).thenReturn(Optional.of(attack));
 		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.MAGIC)).thenReturn(true);
 

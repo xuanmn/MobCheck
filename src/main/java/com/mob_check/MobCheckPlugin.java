@@ -72,8 +72,8 @@ public class MobCheckPlugin extends Plugin
 		public static final int VORKATH_RANGE = 1483;
 		public static final int CERBERUS_MAGIC = 1243;
 		public static final int CERBERUS_RANGE = 1244;
-		public static final int HYDRA_MAGIC = 1662;
-		public static final int HYDRA_RANGE = 1663;
+		public static final int HYDRA_MAGIC = 1663;
+		public static final int HYDRA_RANGE = 1662;
 		public static final int HUNLLEF_MAGIC = 1707;
 		public static final int HUNLLEF_RANGE = 1708;
 		public static final int DEMONIC_GORILLA_MAGIC = 1302;
@@ -127,12 +127,13 @@ public class MobCheckPlugin extends Plugin
 		public static final int MUSPAH_MELEE_SWIPE = 9922;
 		public static final int TORMENTED_DEMON_MELEE = 10922;
 		public static final int DAGANNOTH_REX_MELEE = 2853;
+		public static final int DAGANNOTH_REX_MELEE_2 = 2851;
 
 		private AnimationID() {}
 	}
 
 	// ==========================================
-	// Colosseum Region IDs (for gating generic projectile IDs)
+	// Region IDs (for gating generic projectile IDs)
 	// ==========================================
 	private static final Set<Integer> COLOSSEUM_REGION_IDS = new HashSet<>();
 	static
@@ -140,6 +141,14 @@ public class MobCheckPlugin extends Plugin
 		// Fortis Colosseum region IDs
 		COLOSSEUM_REGION_IDS.add(7216);
 		COLOSSEUM_REGION_IDS.add(7472);
+	}
+
+	private static final Set<Integer> DAGANNOTH_KINGS_REGION_IDS = new HashSet<>();
+	static
+	{
+		// Waterbirth Island Dungeon / Dagannoth Kings Lair
+		DAGANNOTH_KINGS_REGION_IDS.add(11588);
+		DAGANNOTH_KINGS_REGION_IDS.add(11589);
 	}
 
 	@Inject
@@ -244,9 +253,9 @@ public class MobCheckPlugin extends Plugin
 		public final Projectile projectile;
 		public final boolean isManticoreCombo;
 
-		public AttackState(int ticks, String styleName, String npcName)
+		public AttackState(int ticks, PrayerStyle prayerStyle, String npcName)
 		{
-			this(ticks, ticks, PrayerStyle.fromDisplayName(styleName), npcName, null, null, false);
+			this(ticks, ticks, prayerStyle, npcName, null, null, false);
 		}
 
 		public AttackState(int ticks, int initialTicks, PrayerStyle prayerStyle, String npcName, NPC sourceNpc, Projectile projectile, boolean isManticoreCombo)
@@ -391,8 +400,6 @@ public class MobCheckPlugin extends Plugin
 		PROJECTILE_NPC_NAMES.put(ProjectileID.TORMENTED_DEMON_RANGE, "Tormented Demon (Range)");
 
 		// Dagannoth Kings
-		PROJECTILE_STYLES.put(ProjectileID.DAGANNOTH_PRIME_MAGIC, PrayerStyle.MAGIC);
-		PROJECTILE_NPC_NAMES.put(ProjectileID.DAGANNOTH_PRIME_MAGIC, "Dagannoth Prime");
 		PROJECTILE_STYLES.put(ProjectileID.DAGANNOTH_SUPREME_RANGE, PrayerStyle.RANGE);
 		PROJECTILE_NPC_NAMES.put(ProjectileID.DAGANNOTH_SUPREME_RANGE, "Dagannoth Supreme");
 		PROJECTILE_STYLES.put(ProjectileID.DAGANNOTH_SUPREME_RANGE_2, PrayerStyle.RANGE);
@@ -408,6 +415,14 @@ public class MobCheckPlugin extends Plugin
 		COLOSSEUM_ONLY_PROJECTILE_NPC_NAMES.put(ProjectileID.FREMENNIK_ARCHER_RANGE, "Archer");
 		COLOSSEUM_ONLY_PROJECTILE_STYLES.put(ProjectileID.FREMENNIK_SEER_MAGIC, PrayerStyle.MAGIC);
 		COLOSSEUM_ONLY_PROJECTILE_NPC_NAMES.put(ProjectileID.FREMENNIK_SEER_MAGIC, "Seer");
+	}
+
+	private static final Map<Integer, PrayerStyle> DAGANNOTH_KINGS_ONLY_PROJECTILE_STYLES = new HashMap<>();
+	private static final Map<Integer, String> DAGANNOTH_KINGS_ONLY_PROJECTILE_NPC_NAMES = new HashMap<>();
+	static
+	{
+		DAGANNOTH_KINGS_ONLY_PROJECTILE_STYLES.put(ProjectileID.DAGANNOTH_PRIME_MAGIC, PrayerStyle.MAGIC);
+		DAGANNOTH_KINGS_ONLY_PROJECTILE_NPC_NAMES.put(ProjectileID.DAGANNOTH_PRIME_MAGIC, "Dagannoth Prime");
 	}
 
 	// Comprehensive animation mappings (for Melee/Instant attacks)
@@ -434,15 +449,16 @@ public class MobCheckPlugin extends Plugin
 		// === ADDITIONAL MELEE ANIMATIONS ===
 		MELEE_ANIMATIONS.put(AnimationID.ABYSSAL_DEMON_MELEE, 4);
 		MELEE_ANIMATIONS.put(AnimationID.BLOODVELD_MELEE, 4);
-		MELEE_ANIMATIONS.put(AnimationID.ZILYANA_MELEE, 4);
-		MELEE_ANIMATIONS.put(AnimationID.GRAARDOR_MELEE, 4);
-		MELEE_ANIMATIONS.put(AnimationID.KRIL_MELEE, 4);
-		MELEE_ANIMATIONS.put(AnimationID.CERBERUS_MELEE, 4);
-		MELEE_ANIMATIONS.put(AnimationID.DEMONIC_GORILLA_MELEE, 4);
-		MELEE_ANIMATIONS.put(AnimationID.MUSPAH_MELEE_ATTACK, 4);
-		MELEE_ANIMATIONS.put(AnimationID.MUSPAH_MELEE_SWIPE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.ZILYANA_MELEE, 2);
+		MELEE_ANIMATIONS.put(AnimationID.GRAARDOR_MELEE, 6);
+		MELEE_ANIMATIONS.put(AnimationID.KRIL_MELEE, 6);
+		MELEE_ANIMATIONS.put(AnimationID.CERBERUS_MELEE, 6);
+		MELEE_ANIMATIONS.put(AnimationID.DEMONIC_GORILLA_MELEE, 5);
+		MELEE_ANIMATIONS.put(AnimationID.MUSPAH_MELEE_ATTACK, 6);
+		MELEE_ANIMATIONS.put(AnimationID.MUSPAH_MELEE_SWIPE, 6);
 		MELEE_ANIMATIONS.put(AnimationID.TORMENTED_DEMON_MELEE, 4);
 		MELEE_ANIMATIONS.put(AnimationID.DAGANNOTH_REX_MELEE, 4);
+		MELEE_ANIMATIONS.put(AnimationID.DAGANNOTH_REX_MELEE_2, 4);
 	}
 
 	@Provides
@@ -558,7 +574,7 @@ public class MobCheckPlugin extends Plugin
 		}
 	}
 
-	public void playAlertSound(PrayerStyle style)
+	private void playAlertSound(PrayerStyle style)
 	{
 		if (!config.playSoundAlert() || style == null)
 		{
@@ -612,14 +628,10 @@ public class MobCheckPlugin extends Plugin
 		return attacks.isEmpty() ? Optional.empty() : Optional.of(attacks.get(0));
 	}
 
-	/**
-	 * Checks whether the player is currently in a Colosseum region.
-	 * Used to gate generic projectile IDs (15, 160) that would false-positive elsewhere.
-	 */
 	@SuppressWarnings("deprecation")
-	private boolean isInColosseumRegion()
+	private boolean isPlayerInRegions(Set<Integer> targetRegions)
 	{
-		if (client == null)
+		if (client == null || targetRegions == null || targetRegions.isEmpty())
 		{
 			return false;
 		}
@@ -644,12 +656,30 @@ public class MobCheckPlugin extends Plugin
 		}
 		for (int region : regions)
 		{
-			if (COLOSSEUM_REGION_IDS.contains(region))
+			if (targetRegions.contains(region))
 			{
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Checks whether the player is currently in a Colosseum region.
+	 * Used to gate generic projectile IDs (15, 160) that would false-positive elsewhere.
+	 */
+	private boolean isInColosseumRegion()
+	{
+		return isPlayerInRegions(COLOSSEUM_REGION_IDS);
+	}
+
+	/**
+	 * Checks whether the player is currently in the Dagannoth Kings Lair region.
+	 * Used to gate generic Water Wave projectile ID (162).
+	 */
+	private boolean isInDagannothKingsRegion()
+	{
+		return isPlayerInRegions(DAGANNOTH_KINGS_REGION_IDS);
 	}
 
 	/**
@@ -666,7 +696,21 @@ public class MobCheckPlugin extends Plugin
 		// Check region-gated projectiles (Fremennik Warband arrows/spells)
 		if (isInColosseumRegion())
 		{
-			return COLOSSEUM_ONLY_PROJECTILE_STYLES.get(projectileId);
+			PrayerStyle colosseumStyle = COLOSSEUM_ONLY_PROJECTILE_STYLES.get(projectileId);
+			if (colosseumStyle != null)
+			{
+				return colosseumStyle;
+			}
+		}
+
+		// Check region-gated Dagannoth Kings projectiles (Water Wave 162)
+		if (isInDagannothKingsRegion())
+		{
+			PrayerStyle dkStyle = DAGANNOTH_KINGS_ONLY_PROJECTILE_STYLES.get(projectileId);
+			if (dkStyle != null)
+			{
+				return dkStyle;
+			}
 		}
 
 		return null;
@@ -685,7 +729,20 @@ public class MobCheckPlugin extends Plugin
 
 		if (isInColosseumRegion())
 		{
-			return COLOSSEUM_ONLY_PROJECTILE_NPC_NAMES.get(projectileId);
+			String colosseumName = COLOSSEUM_ONLY_PROJECTILE_NPC_NAMES.get(projectileId);
+			if (colosseumName != null)
+			{
+				return colosseumName;
+			}
+		}
+
+		if (isInDagannothKingsRegion())
+		{
+			String dkName = DAGANNOTH_KINGS_ONLY_PROJECTILE_NPC_NAMES.get(projectileId);
+			if (dkName != null)
+			{
+				return dkName;
+			}
 		}
 
 		return null;

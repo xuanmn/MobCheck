@@ -44,10 +44,10 @@ A dynamic PvM Priority Prayer Helper plugin for the [RuneLite](https://runelite.
     - Ranged attack projectile (2330).
     - Melee attack / swipe animations (9920, 9922).
   - **Dagannoth Kings**:
-    - **Dagannoth Rex**: Melee attack swipe animation (2853).
-    - **Dagannoth Prime**: Water Wave Magic projectile (162).
+    - **Dagannoth Rex**: Melee attack swipe animations (2853, 2851).
+    - **Dagannoth Prime**: Water Wave Magic projectile (162, region-gated to DK Lair).
     - **Dagannoth Supreme**: Spine throw Ranged projectiles (475, 476).
-  - **Additional PvM Support**: Zulrah, Vorkath, Cerberus, Alchemical Hydra, Hunllef (The Gauntlet), Demonic Gorillas, God Wars Dungeon bosses, and standard slayer monsters.
+  - **Additional PvM Support**: Zulrah, Vorkath, Cerberus, Alchemical Hydra (Magic 1663, Range 1662), Hunllef (The Gauntlet), Demonic Gorillas, God Wars Dungeon bosses (Zilyana 2t, Graardor 6t, K'ril 6t), and standard slayer monsters.
 
 ---
 

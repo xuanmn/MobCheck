@@ -77,7 +77,7 @@ public class MobCheckOverlayTest
 	@Test
 	public void testRenderPriorityAttackWithInfoBoxAndOverhead()
 	{
-		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(1, "Pray Magic", "Jal-Zek");
+		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
 		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
 		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.MAGIC)).thenReturn(true);
 
@@ -99,7 +99,7 @@ public class MobCheckOverlayTest
 	@Test
 	public void testRenderDangerFlashWhenUnprotected()
 	{
-		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(1, "Pray Magic", "Jal-Zek");
+		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
 		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
 		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.MAGIC)).thenReturn(false);
 		when(config.flashScreenOnWrongPrayer()).thenReturn(true);
@@ -115,7 +115,7 @@ public class MobCheckOverlayTest
 	@Test
 	public void testRenderProgressRingWhenEnabled()
 	{
-		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(2, "Pray Range", "Jal-Xil");
+		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.RANGE, "Jal-Xil");
 		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
 		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.RANGE)).thenReturn(true);
 		when(config.showTickProgressRing()).thenReturn(true);
@@ -138,12 +138,12 @@ public class MobCheckOverlayTest
 	@Test
 	public void testInfoBoxCappedAtFourAttacks()
 	{
-		MobCheckPlugin.AttackState a1 = new MobCheckPlugin.AttackState(1, "Pray Magic", "Mob 1");
-		MobCheckPlugin.AttackState a2 = new MobCheckPlugin.AttackState(2, "Pray Range", "Mob 2");
-		MobCheckPlugin.AttackState a3 = new MobCheckPlugin.AttackState(3, "Pray Melee", "Mob 3");
-		MobCheckPlugin.AttackState a4 = new MobCheckPlugin.AttackState(4, "Pray Magic", "Mob 4");
-		MobCheckPlugin.AttackState a5 = new MobCheckPlugin.AttackState(5, "Pray Range", "Mob 5");
-		MobCheckPlugin.AttackState a6 = new MobCheckPlugin.AttackState(6, "Pray Melee", "Mob 6");
+		MobCheckPlugin.AttackState a1 = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Mob 1");
+		MobCheckPlugin.AttackState a2 = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.RANGE, "Mob 2");
+		MobCheckPlugin.AttackState a3 = new MobCheckPlugin.AttackState(3, MobCheckPlugin.PrayerStyle.MELEE, "Mob 3");
+		MobCheckPlugin.AttackState a4 = new MobCheckPlugin.AttackState(4, MobCheckPlugin.PrayerStyle.MAGIC, "Mob 4");
+		MobCheckPlugin.AttackState a5 = new MobCheckPlugin.AttackState(5, MobCheckPlugin.PrayerStyle.RANGE, "Mob 5");
+		MobCheckPlugin.AttackState a6 = new MobCheckPlugin.AttackState(6, MobCheckPlugin.PrayerStyle.MELEE, "Mob 6");
 
 		when(plugin.getActiveAttacks()).thenReturn(List.of(a1, a2, a3, a4, a5, a6));
 
