@@ -18,6 +18,7 @@ import java.util.Optional;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings("deprecation")
 public class MobCheckPluginUnitTest
 {
 	private MobCheckPlugin plugin;

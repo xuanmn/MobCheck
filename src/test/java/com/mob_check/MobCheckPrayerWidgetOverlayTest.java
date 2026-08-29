@@ -16,6 +16,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings("deprecation")
 public class MobCheckPrayerWidgetOverlayTest
 {
 	private MobCheckPrayerWidgetOverlay overlay;

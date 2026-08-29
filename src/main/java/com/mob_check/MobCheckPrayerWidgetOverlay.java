@@ -20,6 +20,7 @@ import java.awt.Rectangle;
 import java.awt.Stroke;
 import java.util.Optional;
 
+@SuppressWarnings("deprecation")
 public class MobCheckPrayerWidgetOverlay extends Overlay
 {
 	private final Client client;
@@ -66,9 +67,13 @@ public class MobCheckPrayerWidgetOverlay extends Overlay
 		if (prayerWidget == null || prayerWidget.isHidden())
 		{
 			Widget parent = client.getWidget(ComponentID.PRAYER_PARENT);
-			if (parent != null && parent.getChildren() != null && style.getChildIndex() < parent.getChildren().length)
+			if (parent != null)
 			{
-				prayerWidget = parent.getChildren()[style.getChildIndex()];
+				Widget[] children = parent.getChildren();
+				if (children != null && style.getChildIndex() < children.length)
+				{
+					prayerWidget = children[style.getChildIndex()];
+				}
 			}
 		}
 

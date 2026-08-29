@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+@SuppressWarnings({"deprecation", "null"})
 public class MobCheckWorldOverlay extends Overlay
 {
 	private final Client client;

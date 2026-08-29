@@ -1,16 +1,13 @@
 package com.mob_check;
 
 import com.google.inject.Provides;
+import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
-import net.runelite.api.NPCComposition;
 import net.runelite.api.Player;
 import net.runelite.api.Prayer;
 import net.runelite.api.Projectile;
 import net.runelite.api.SpriteID;
-import net.runelite.api.Actor;
-import net.runelite.api.coords.LocalPoint;
-import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.client.config.ConfigManager;
@@ -162,6 +159,7 @@ public class MobCheckPlugin extends Plugin
 	@Inject
 	private OverlayManager overlayManager;
 
+	@SuppressWarnings("deprecation")
 	public enum PrayerStyle
 	{
 		MAGIC("Pray Magic", Prayer.PROTECT_FROM_MAGIC, SpriteID.PRAYER_PROTECT_FROM_MAGIC, 25, new Color(0, 200, 255)),
@@ -560,6 +558,7 @@ public class MobCheckPlugin extends Plugin
 		client.playSoundEffect(soundId);
 	}
 
+	@SuppressWarnings("deprecation")
 	public boolean isPrayerProtected(PrayerStyle style)
 	{
 		if (client == null || style == null)
@@ -589,13 +588,33 @@ public class MobCheckPlugin extends Plugin
 	 * Checks whether the player is currently in a Colosseum region.
 	 * Used to gate generic projectile IDs (15, 160) that would false-positive elsewhere.
 	 */
+	@SuppressWarnings("deprecation")
 	private boolean isInColosseumRegion()
 	{
-		if (client.getMapRegions() == null)
+		if (client == null)
 		{
 			return false;
 		}
-		for (int region : client.getMapRegions())
+		int[] regions = null;
+		try
+		{
+			if (client.getTopLevelWorldView() != null)
+			{
+				regions = client.getTopLevelWorldView().getMapRegions();
+			}
+		}
+		catch (NoSuchMethodError | Exception ignored)
+		{
+		}
+		if (regions == null)
+		{
+			regions = client.getMapRegions();
+		}
+		if (regions == null)
+		{
+			return false;
+		}
+		for (int region : regions)
 		{
 			if (COLOSSEUM_REGION_IDS.contains(region))
 			{

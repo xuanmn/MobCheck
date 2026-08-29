@@ -68,7 +68,7 @@ public class MobCheckWorldOverlayTest
 		when(npc.getIndex()).thenReturn(42);
 		when(npc.isDead()).thenReturn(false);
 		when(npc.getLogicalHeight()).thenReturn(150);
-		when(npc.getLocalLocation()).thenReturn(new LocalPoint(1000, 2000));
+		when(npc.getLocalLocation()).thenReturn(new LocalPoint(1000, 2000, 0));
 
 		Shape hull = new Rectangle2D.Double(10, 10, 50, 50);
 		when(npc.getConvexHull()).thenReturn(hull);
@@ -124,7 +124,7 @@ public class MobCheckWorldOverlayTest
 		when(npc.getIndex()).thenReturn(50);
 		when(npc.isDead()).thenReturn(false);
 		when(npc.getLogicalHeight()).thenReturn(100);
-		when(npc.getLocalLocation()).thenReturn(new LocalPoint(500, 500));
+		when(npc.getLocalLocation()).thenReturn(new LocalPoint(500, 500, 0));
 
 		Shape hull = new Rectangle2D.Double(0, 0, 20, 20);
 		when(npc.getConvexHull()).thenReturn(hull);
