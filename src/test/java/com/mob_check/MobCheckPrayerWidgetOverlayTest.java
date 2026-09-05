@@ -1,20 +1,25 @@
 package com.mob_check;
 
-import net.runelite.api.Client;
-import net.runelite.api.widgets.Widget;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.util.Optional;
 
-import static org.junit.Assert.assertNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import org.junit.Before;
+import org.junit.Test;
+
+import net.runelite.api.Client;
+import net.runelite.api.widgets.Widget;
 
 @SuppressWarnings("deprecation")
 public class MobCheckPrayerWidgetOverlayTest

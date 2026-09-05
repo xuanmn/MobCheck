@@ -1,11 +1,16 @@
 package com.mob_check;
 
-import net.runelite.api.Client;
-import net.runelite.api.NPC;
-import net.runelite.api.Point;
-import net.runelite.api.coords.LocalPoint;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.awt.Graphics2D;
 import java.awt.Shape;
@@ -13,12 +18,15 @@ import java.awt.geom.Rectangle2D;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import org.junit.Before;
+import org.junit.Test;
+
+import net.runelite.api.Client;
+import net.runelite.api.NPC;
+import net.runelite.api.NPCComposition;
+import net.runelite.api.Point;
+import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.coords.WorldPoint;
 
 public class MobCheckWorldOverlayTest
 {
@@ -138,5 +146,34 @@ public class MobCheckWorldOverlayTest
 
 		// Hull only drawn once despite 2 attacks from the same NPC index
 		verify(graphics, times(1)).draw(hull);
+	}
+
+	@Test
+	public void testRenderTransformedCompositionSize()
+	{
+		NPC npc = mock(NPC.class);
+		when(npc.getIndex()).thenReturn(60);
+		when(npc.isDead()).thenReturn(false);
+		when(npc.getWorldLocation()).thenReturn(new WorldPoint(50, 50, 0));
+
+		net.runelite.api.WorldView wv = mock(net.runelite.api.WorldView.class);
+		when(wv.getPlane()).thenReturn(0);
+		when(wv.getBaseX()).thenReturn(0);
+		when(wv.getBaseY()).thenReturn(0);
+		when(wv.getSizeX()).thenReturn(104);
+		when(wv.getSizeY()).thenReturn(104);
+		when(client.findWorldViewFromWorldPoint(any())).thenReturn(wv);
+
+		NPCComposition transformed = mock(NPCComposition.class);
+		when(transformed.getSize()).thenReturn(3);
+		when(npc.getTransformedComposition()).thenReturn(transformed);
+
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(1, 1, MobCheckPlugin.PrayerStyle.MAGIC, "Phantom Muspah", npc, null, false);
+		when(plugin.getActiveAttacks()).thenReturn(List.of(attack));
+
+		worldOverlay.render(graphics);
+
+		verify(npc, atLeastOnce()).getTransformedComposition();
+		verify(transformed, atLeastOnce()).getSize();
 	}
 }

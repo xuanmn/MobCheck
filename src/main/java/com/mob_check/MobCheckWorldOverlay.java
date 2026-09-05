@@ -1,18 +1,5 @@
 package com.mob_check;
 
-import net.runelite.api.Client;
-import net.runelite.api.NPC;
-import net.runelite.api.NPCComposition;
-import net.runelite.api.Perspective;
-import net.runelite.api.Point;
-import net.runelite.api.coords.LocalPoint;
-import net.runelite.api.coords.WorldPoint;
-import net.runelite.client.ui.overlay.Overlay;
-import net.runelite.client.ui.overlay.OverlayLayer;
-import net.runelite.client.ui.overlay.OverlayPosition;
-import net.runelite.client.ui.overlay.OverlayPriority;
-
-import javax.inject.Inject;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -24,6 +11,20 @@ import java.awt.Stroke;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import javax.inject.Inject;
+
+import net.runelite.api.Client;
+import net.runelite.api.NPC;
+import net.runelite.api.NPCComposition;
+import net.runelite.api.Perspective;
+import net.runelite.api.Point;
+import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.ui.overlay.Overlay;
+import net.runelite.client.ui.overlay.OverlayLayer;
+import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.OverlayPriority;
 
 @SuppressWarnings({"deprecation", "null"})
 public class MobCheckWorldOverlay extends Overlay
@@ -86,12 +87,19 @@ public class MobCheckWorldOverlay extends Overlay
 				WorldPoint wp = npc.getWorldLocation();
 				if (wp != null)
 				{
-					LocalPoint lp = LocalPoint.fromWorld(client, wp);
+					LocalPoint lp = null;
+					try
+					{
+						lp = LocalPoint.fromWorld(client, wp);
+					}
+					catch (Exception ignored)
+					{
+					}
 					if (lp != null)
 					{
 						// #12: Use NPC size for multi-tile NPCs (e.g. 3x3 bosses)
 						int npcSize = 1;
-						NPCComposition composition = npc.getComposition();
+						NPCComposition composition = npc.getTransformedComposition() != null ? npc.getTransformedComposition() : npc.getComposition();
 						if (composition != null)
 						{
 							npcSize = composition.getSize();

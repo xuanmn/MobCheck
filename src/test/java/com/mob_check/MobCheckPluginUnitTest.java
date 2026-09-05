@@ -1,22 +1,31 @@
 package com.mob_check;
 
-import net.runelite.api.Client;
-import net.runelite.api.NPC;
-import net.runelite.api.Player;
-import net.runelite.api.Prayer;
-import net.runelite.api.Projectile;
-import net.runelite.api.events.AnimationChanged;
-import net.runelite.api.events.GameTick;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import org.junit.Before;
+import org.junit.Test;
+
+import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.api.NPC;
+import net.runelite.api.Player;
+import net.runelite.api.Prayer;
+import net.runelite.api.Projectile;
+import net.runelite.api.events.AnimationChanged;
+import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameTick;
 
 @SuppressWarnings("deprecation")
 public class MobCheckPluginUnitTest
@@ -1017,5 +1026,67 @@ public class MobCheckPluginUnitTest
 		// Graardor: 6 initial ticks - 1 tick = 5 remaining
 		assertEquals("General Graardor", attacks.get(2).npcName);
 		assertEquals(5, attacks.get(2).ticks);
+	}
+
+	@Test
+	public void testGameStateChangedCleansUp()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		NPC npc = mock(NPC.class);
+		when(npc.getIndex()).thenReturn(15);
+		when(npc.getName()).thenReturn("Jal-ImKot");
+		when(npc.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JAL_IMKOT_MELEE);
+		when(npc.getInteracting()).thenReturn(player);
+
+		AnimationChanged anim = new AnimationChanged();
+		anim.setActor(npc);
+		plugin.onAnimationChanged(anim);
+
+		tickAndRefresh();
+		assertFalse(plugin.getActiveAttacks().isEmpty());
+
+		// Trigger world hop
+		GameStateChanged event = new GameStateChanged();
+		event.setGameState(GameState.HOPPING);
+		plugin.onGameStateChanged(event);
+
+		assertTrue(plugin.getActiveAttacks().isEmpty());
+		assertFalse(plugin.getPriorityAttack().isPresent());
+
+		// Trigger login screen
+		event.setGameState(GameState.LOGIN_SCREEN);
+		plugin.onGameStateChanged(event);
+		assertTrue(plugin.getActiveAttacks().isEmpty());
+	}
+
+	@Test
+	public void testDeadNpcMeleeAttackPurged()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		NPC npc = mock(NPC.class);
+		when(npc.getIndex()).thenReturn(16);
+		when(npc.getName()).thenReturn("Jal-ImKot");
+		when(npc.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JAL_IMKOT_MELEE);
+		when(npc.getInteracting()).thenReturn(player);
+		when(npc.isDead()).thenReturn(false);
+
+		AnimationChanged anim = new AnimationChanged();
+		anim.setActor(npc);
+		plugin.onAnimationChanged(anim);
+
+		tickAndRefresh();
+		assertEquals(1, plugin.getActiveAttacks().size());
+
+		// Monster dies during attack countdown (e.g. killed by player before damage lands)
+		when(npc.isDead()).thenReturn(true);
+
+		tickAndRefresh();
+		// Attack should be purged immediately, not waiting until ticks < 0
+		assertTrue("Dead NPC melee attack should be purged on tick", plugin.getActiveAttacks().isEmpty());
+		assertFalse(plugin.getPriorityAttack().isPresent());
 	}
 }

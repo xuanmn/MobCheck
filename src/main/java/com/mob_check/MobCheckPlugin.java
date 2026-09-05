@@ -1,25 +1,5 @@
 package com.mob_check;
 
-import com.google.inject.Provides;
-import net.runelite.api.Actor;
-import net.runelite.api.Client;
-import net.runelite.api.NPC;
-import net.runelite.api.Player;
-import net.runelite.api.Prayer;
-import net.runelite.api.Projectile;
-import net.runelite.api.SpriteID;
-import net.runelite.api.events.AnimationChanged;
-import net.runelite.api.events.GameTick;
-import net.runelite.api.events.NpcDespawned;
-import net.runelite.client.config.ConfigManager;
-import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.plugins.Plugin;
-import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.ui.overlay.OverlayManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.inject.Inject;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,6 +10,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+
+import javax.inject.Inject;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.inject.Provides;
+
+import net.runelite.api.Actor;
+import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.api.NPC;
+import net.runelite.api.Player;
+import net.runelite.api.Prayer;
+import net.runelite.api.Projectile;
+import net.runelite.api.SpriteID;
+import net.runelite.api.events.AnimationChanged;
+import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameTick;
+import net.runelite.api.events.NpcDespawned;
+import net.runelite.client.config.ConfigManager;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.plugins.Plugin;
+import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.overlay.OverlayManager;
 
 @PluginDescriptor(
 	name = "Mob Check",
@@ -283,7 +288,7 @@ public class MobCheckPlugin extends Plugin
 	private PrayerStyle lastPriorityPrayer = null;
 
 	// #1: Cached attack list — rebuilt once per game tick
-	private List<AttackState> cachedAttacks = Collections.emptyList();
+	private volatile List<AttackState> cachedAttacks = Collections.emptyList();
 
 	// #2: Tracks the initial tick count for each projectile (keyed by identity hash)
 	private final Map<Integer, Integer> projectileInitialTicks = new HashMap<>();
@@ -538,13 +543,31 @@ public class MobCheckPlugin extends Plugin
 	}
 
 	@Subscribe
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		GameState state = event.getGameState();
+		if (state == GameState.LOGGING_IN || state == GameState.HOPPING || state == GameState.LOGIN_SCREEN)
+		{
+			npcMeleeAttacks.clear();
+			projectileInitialTicks.clear();
+			cachedAttacks = Collections.emptyList();
+			lastPriorityPrayer = null;
+		}
+	}
+
+	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-		// #3: Countdown active melee attacks — remove when ticks go below 0
+		// #3: Countdown active melee attacks — remove if NPC died or when ticks go below 0
 		// so the warning stays visible at 0t (the impact tick)
 		npcMeleeAttacks.entrySet().removeIf(entry -> {
-			entry.getValue().ticks--;
-			return entry.getValue().ticks < 0;
+			AttackState attack = entry.getValue();
+			if (attack.sourceNpc != null && attack.sourceNpc.isDead())
+			{
+				return true;
+			}
+			attack.ticks--;
+			return attack.ticks < 0;
 		});
 
 		// #1: Rebuild and cache the attack list once per tick
@@ -836,8 +859,14 @@ public class MobCheckPlugin extends Plugin
 		// #2: Prune stale entries from the initialTicks cache
 		projectileInitialTicks.keySet().retainAll(aliveProjectileHashes);
 
-		// Gather active melee animation threats
-		attacks.addAll(npcMeleeAttacks.values());
+		// Gather active melee animation threats (skip dead NPCs)
+		for (AttackState meleeAttack : npcMeleeAttacks.values())
+		{
+			if (meleeAttack.sourceNpc == null || !meleeAttack.sourceNpc.isDead())
+			{
+				attacks.add(meleeAttack);
+			}
+		}
 
 		// Sort threats by ticks ascending (lowest ticks = nearest impact = highest priority)
 		attacks.sort(ATTACK_COMPARATOR);

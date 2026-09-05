@@ -1,11 +1,15 @@
 package com.mob_check;
 
-import net.runelite.api.Client;
-import net.runelite.api.Player;
-import net.runelite.api.Point;
-import net.runelite.client.game.SpriteManager;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.awt.Color;
 import java.awt.FontMetrics;
@@ -14,14 +18,15 @@ import java.awt.image.BufferedImage;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import org.junit.Before;
+import org.junit.Test;
 
-public class MobCheckOverlayTest
-{
+import net.runelite.api.Client;
+import net.runelite.api.Player;
+import net.runelite.api.Point;
+import net.runelite.client.game.SpriteManager;
+
+public class MobCheckOverlayTest {
 	private MobCheckOverlay overlay;
 	private Client client;
 	private MobCheckPlugin plugin;
@@ -30,8 +35,7 @@ public class MobCheckOverlayTest
 	private Graphics2D graphics;
 
 	@Before
-	public void setUp()
-	{
+	public void setUp() {
 		client = mock(Client.class);
 		plugin = mock(MobCheckPlugin.class);
 		config = mock(MobCheckConfig.class);
@@ -56,8 +60,7 @@ public class MobCheckOverlayTest
 	}
 
 	@Test
-	public void testRenderDisabledTogglesReturnNull()
-	{
+	public void testRenderDisabledTogglesReturnNull() {
 		when(config.showInfoBox()).thenReturn(false);
 		when(config.showOverhead()).thenReturn(false);
 		when(config.flashScreenOnWrongPrayer()).thenReturn(false);
@@ -67,16 +70,14 @@ public class MobCheckOverlayTest
 	}
 
 	@Test
-	public void testRenderNoPriorityAttackReturnsNull()
-	{
+	public void testRenderNoPriorityAttackReturnsNull() {
 		when(plugin.getActiveAttacks()).thenReturn(Collections.emptyList());
 
 		assertNull(overlay.render(graphics));
 	}
 
 	@Test
-	public void testRenderPriorityAttackWithInfoBoxAndOverhead()
-	{
+	public void testRenderPriorityAttackWithInfoBoxAndOverhead() {
 		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
 		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
 		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.MAGIC)).thenReturn(true);
@@ -97,8 +98,7 @@ public class MobCheckOverlayTest
 	}
 
 	@Test
-	public void testRenderDangerFlashWhenUnprotected()
-	{
+	public void testRenderDangerFlashWhenUnprotected() {
 		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
 		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
 		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.MAGIC)).thenReturn(false);
@@ -108,13 +108,12 @@ public class MobCheckOverlayTest
 
 		overlay.render(graphics);
 
-		// Verify screen danger flash border was drawn
-		verify(graphics, times(1)).drawRect(0, 0, 800, 600);
+		// Verify screen danger flash border was drawn (with 8px stroke inset)
+		verify(graphics, times(1)).drawRect(8, 8, 784, 584);
 	}
 
 	@Test
-	public void testRenderProgressRingWhenEnabled()
-	{
+	public void testRenderProgressRingWhenEnabled() {
 		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.RANGE, "Jal-Xil");
 		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
 		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.RANGE)).thenReturn(true);
@@ -136,8 +135,7 @@ public class MobCheckOverlayTest
 	}
 
 	@Test
-	public void testInfoBoxCappedAtFourAttacks()
-	{
+	public void testInfoBoxCappedAtFourAttacks() {
 		MobCheckPlugin.AttackState a1 = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Mob 1");
 		MobCheckPlugin.AttackState a2 = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.RANGE, "Mob 2");
 		MobCheckPlugin.AttackState a3 = new MobCheckPlugin.AttackState(3, MobCheckPlugin.PrayerStyle.MELEE, "Mob 3");
@@ -160,17 +158,15 @@ public class MobCheckOverlayTest
 	}
 
 	@Test
-	public void testManticoreComboHeaderInInfoBox()
-	{
+	public void testManticoreComboHeaderInInfoBox() {
 		MobCheckPlugin.AttackState manticoreAttack = new MobCheckPlugin.AttackState(
-			1,
-			1,
-			MobCheckPlugin.PrayerStyle.MAGIC,
-			"Manticore",
-			null,
-			null,
-			true
-		);
+				1,
+				1,
+				MobCheckPlugin.PrayerStyle.MAGIC,
+				"Manticore",
+				null,
+				null,
+				true);
 		when(plugin.getActiveAttacks()).thenReturn(List.of(manticoreAttack));
 		when(config.showComboSequence()).thenReturn(true);
 		when(config.showInfoBox()).thenReturn(true);
@@ -182,4 +178,3 @@ public class MobCheckOverlayTest
 		assertNotNull(overlay.render(graphics));
 	}
 }
-

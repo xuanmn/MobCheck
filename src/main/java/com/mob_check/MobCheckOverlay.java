@@ -1,5 +1,16 @@
 package com.mob_check;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.Stroke;
+import java.awt.image.BufferedImage;
+import java.util.List;
+
+import javax.inject.Inject;
+
 import net.runelite.api.Client;
 import net.runelite.api.Player;
 import net.runelite.client.game.SpriteManager;
@@ -9,16 +20,6 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.InfoBoxComponent;
 import net.runelite.client.ui.overlay.components.PanelComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
-
-import javax.inject.Inject;
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Graphics2D;
-import java.awt.Stroke;
-import java.awt.image.BufferedImage;
-import java.util.List;
 
 public class MobCheckOverlay extends Overlay
 {
@@ -30,10 +31,20 @@ public class MobCheckOverlay extends Overlay
 
 	private static final Font OVERHEAD_FONT = new Font("Arial", Font.BOLD, 18);
 	private static final Stroke RING_STROKE = new BasicStroke(3f);
-	private static final Stroke SCREEN_FLASH_STROKE = new BasicStroke(16f);
+	private static final float SCREEN_FLASH_WIDTH = 16f;
+	private static final int SCREEN_FLASH_INSET = (int) (SCREEN_FLASH_WIDTH / 2);
+	private static final Stroke SCREEN_FLASH_STROKE = new BasicStroke(SCREEN_FLASH_WIDTH);
 	private static final Color PROGRESS_RING_BG_COLOR = new Color(0, 0, 0, 120);
 	private static final Color PROTECTED_COLOR = new Color(0, 255, 60);
 	private static final Color INFOBOX_BG_COLOR = new Color(0, 0, 0, 160);
+
+	private final InfoBoxComponent[] reusableInfoBoxes = new InfoBoxComponent[] {
+		new InfoBoxComponent(), new InfoBoxComponent(), new InfoBoxComponent(), new InfoBoxComponent()
+	};
+	private final TitleComponent manticoreComboTitle = TitleComponent.builder()
+		.text("Manticore Combo")
+		.color(Color.YELLOW)
+		.build();
 
 	@Inject
 	public MobCheckOverlay(Client client, MobCheckPlugin plugin, MobCheckConfig config, SpriteManager spriteManager)
@@ -73,7 +84,7 @@ public class MobCheckOverlay extends Overlay
 			{
 				graphics.setColor(config.dangerFlashColor());
 				graphics.setStroke(SCREEN_FLASH_STROKE);
-				graphics.drawRect(0, 0, width, height);
+				graphics.drawRect(SCREEN_FLASH_INSET, SCREEN_FLASH_INSET, width - (SCREEN_FLASH_INSET * 2), height - (SCREEN_FLASH_INSET * 2));
 			}
 		}
 
@@ -104,10 +115,7 @@ public class MobCheckOverlay extends Overlay
 
 			if (hasManticoreCombo && config.showComboSequence())
 			{
-				panelComponent.getChildren().add(TitleComponent.builder()
-					.text("Manticore Combo")
-					.color(Color.YELLOW)
-					.build());
+				panelComponent.getChildren().add(manticoreComboTitle);
 			}
 
 			int count = 0;
@@ -120,7 +128,7 @@ public class MobCheckOverlay extends Overlay
 				BufferedImage sprite = getPrayerSprite(attack.prayerStyle);
 				if (sprite != null)
 				{
-					InfoBoxComponent infoBox = new InfoBoxComponent();
+					InfoBoxComponent infoBox = reusableInfoBoxes[count];
 					infoBox.setImage(sprite);
 					infoBox.setText(attack.ticks + "t");
 
