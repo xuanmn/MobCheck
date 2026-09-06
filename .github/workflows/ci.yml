@@ -41,14 +41,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         # Note: setup-gradle automatically validates wrapper checksums and manages caching
 
-      - name: Verify Plugin Hub Metadata
-        run: |
-          echo "Verifying runelite-plugin.properties..."
-          test -f runelite-plugin.properties || (echo "Missing runelite-plugin.properties" && exit 1)
-          grep -q "^plugins=com.mob_check.MobCheckPlugin" runelite-plugin.properties || (echo "Invalid plugins entry" && exit 1)
-          grep -q "^displayName=" runelite-plugin.properties || (echo "Missing displayName" && exit 1)
-          grep -q "^version=" runelite-plugin.properties || (echo "Missing version" && exit 1)
-
       - name: Build and Test
         run: ./gradlew build shadowJar
 

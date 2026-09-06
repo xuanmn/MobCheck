@@ -57,3 +57,10 @@ tasks.register('shadowJar', Jar) {
 	archiveClassifier.set('shadow')
 	archiveFileName.set("${rootProject.name}-${project.version}-all.jar")
 }
+
+tasks.register('run', JavaExec) {
+	group = 'runelite'
+	description = 'Runs the RuneLite client with Mob Check preloaded'
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.mob_check.MobCheckPluginTest'
+}
