@@ -88,6 +88,11 @@ export async function searchRuneliteSource(query, { repo = RUNELITE_REPO, path =
 
   const res = await fetch(url, { headers });
   if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error(
+        `GitHub Code Search API requires authentication. Set the GITHUB_TOKEN environment variable (e.g. in your shell or mcp_config.json env) with a personal access token to search RuneLite source code.`
+      );
+    }
     if (res.status === 403) {
       throw new Error(`GitHub API rate limit exceeded. Set GITHUB_TOKEN env var for higher limits. (HTTP ${res.status})`);
     }
@@ -241,7 +246,9 @@ export async function getRuneliteConstants(constantsFile, { filter = "", branch 
 }
 
 /**
- * Search for a specific plugin in RuneLite core or Plugin Hub repos.
+ * Search for plugin implementations in RuneLite core plugins or community plugins.
+ * Searches official plugin implementations in runelite/runelite first.
+ * If GITHUB_TOKEN is available, also searches open-source community plugins via topic:runelite-plugin.
  */
 export async function searchPluginHubSource(query, { limit = 10 } = {}) {
   const q = (query || "").trim();
@@ -249,18 +256,63 @@ export async function searchPluginHubSource(query, { limit = 10 } = {}) {
     return { results: [], count: 0, query };
   }
 
-  // Search both runelite core plugins and plugin-hub
-  const repos = [RUNELITE_REPO, "runelite/plugin-hub"];
-
   const allResults = [];
+  const errors = [];
 
-  for (const repo of repos) {
-    try {
-      const result = await searchRuneliteSource(q, { repo, limit: Math.ceil(limit / 2) });
-      allResults.push(...result.results.map(r => ({ ...r, source: repo })));
-    } catch {
-      // Skip failed repos (rate limiting etc)
+  // 1. Search RuneLite core plugins directory
+  try {
+    const coreResult = await searchRuneliteSource(q, {
+      repo: RUNELITE_REPO,
+      path: "runelite-client/src/main/java/net/runelite/client/plugins",
+      limit: Math.min(limit, 10),
+    });
+    if (coreResult.results) {
+      allResults.push(...coreResult.results.map(r => ({ ...r, source: "runelite-core" })));
     }
+  } catch (err) {
+    errors.push(err.message);
+  }
+
+  // 2. Search community plugins with topic:runelite-plugin if GITHUB_TOKEN is available
+  const token = process.env.GITHUB_TOKEN;
+  if (token && allResults.length < limit) {
+    try {
+      const communityQuery = `${q} topic:runelite-plugin language:java`;
+      const communityUrl = `${GITHUB_API_URL}/search/code?q=${encodeURIComponent(communityQuery)}&per_page=${limit - allResults.length}`;
+      const res = await fetch(communityUrl, {
+        headers: {
+          "User-Agent": USER_AGENT,
+          "Accept": "application/vnd.github.v3.text-match+json",
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const items = data.items || [];
+        allResults.push(...items.map(item => ({
+          name: item.name,
+          path: item.path,
+          repository: item.repository?.full_name,
+          url: item.html_url,
+          score: item.score || 0,
+          source: "community-plugin",
+          matches: item.text_matches?.map(tm => ({ fragment: tm.fragment })).slice(0, 3),
+        })));
+      }
+    } catch {
+      // Non-critical if community search fails
+    }
+  }
+
+  // If no results and authentication errors occurred, return helpful diagnostic note
+  if (allResults.length === 0 && errors.length > 0) {
+    return {
+      query: q,
+      count: 0,
+      results: [],
+      note: errors[0],
+    };
   }
 
   return {

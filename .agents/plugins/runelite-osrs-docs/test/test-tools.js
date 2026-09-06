@@ -28,13 +28,20 @@ async function runTests() {
     console.log(`  - ${r.title} -> ${r.url}`);
   }
 
-  console.log("\n=== Testing OSRS Wiki Monster Stats ===");
+  console.log("\n=== Testing OSRS Wiki Monster Stats (Multi-Phase) ===");
   const monsterStats = await getOsrsWikiMonsterStats("Phantom Muspah");
   console.log(`Title: ${monsterStats.title}`);
   console.log(`Combat level: ${monsterStats.stats?.combat || 'N/A'}`);
   console.log(`Hitpoints: ${monsterStats.stats?.hitpoints || 'N/A'}`);
   console.log(`Attack style: ${monsterStats.stats?.attack_style || 'N/A'}`);
-  console.log(`Attack speed: ${monsterStats.stats?.attack_speed || monsterStats.stats?.attspeed || 'N/A'}`);
+  console.log(`Attack speed: ${monsterStats.stats?.attack_speed || 'N/A'} ticks`);
+  console.log(`Version/Phase count: ${monsterStats.versionCount}`);
+  for (const v of (monsterStats.versions || [])) {
+    console.log(`  - Form ${v.index} (${v.name}): speed ${v.attackSpeed}t, style ${v.attackStyle}, max ${v.maxHit}, hp ${v.hitpoints}, npc ${v.npcId}`);
+  }
+  if (monsterStats.idReferences?.npcIds) {
+    console.log(`NPC IDs detected: ${monsterStats.idReferences.npcIds.join(", ")}`);
+  }
 
   console.log("\n=== Testing OSRS Wiki Page Fetch ===");
   const page = await getOsrsWikiPage("Abyssal demon");
