@@ -132,7 +132,7 @@ public class MobCheckPrayerWidgetOverlayTest
 		children[MobCheckPlugin.PrayerStyle.MELEE.getChildIndex()] = child;
 		when(parent.getChildren()).thenReturn(children);
 
-		when(client.getWidget(net.runelite.api.widgets.ComponentID.PRAYER_PARENT)).thenReturn(parent);
+		when(client.getWidget(net.runelite.api.widgets.WidgetID.PRAYER_GROUP_ID, 0)).thenReturn(parent);
 
 		overlay.render(graphics);
 
