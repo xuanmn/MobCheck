@@ -37,10 +37,12 @@ public class MobCheckOverlay extends Overlay
 	private static final Color PROGRESS_RING_BG_COLOR = new Color(0, 0, 0, 120);
 	private static final Color PROTECTED_COLOR = new Color(0, 255, 60);
 	private static final Color INFOBOX_BG_COLOR = new Color(0, 0, 0, 160);
+	private static final int MAX_INFO_BOXES = 4;
 
-	private final InfoBoxComponent[] reusableInfoBoxes = new InfoBoxComponent[] {
-		new InfoBoxComponent(), new InfoBoxComponent(), new InfoBoxComponent(), new InfoBoxComponent()
-	};
+	private final InfoBoxComponent[] reusableInfoBoxes = new InfoBoxComponent[MAX_INFO_BOXES];
+	{
+		for (int i = 0; i < MAX_INFO_BOXES; i++) { reusableInfoBoxes[i] = new InfoBoxComponent(); }
+	}
 	private final TitleComponent manticoreComboTitle = TitleComponent.builder()
 		.text("Manticore Combo")
 		.color(Color.YELLOW)
@@ -121,7 +123,7 @@ public class MobCheckOverlay extends Overlay
 			int count = 0;
 			for (MobCheckPlugin.AttackState attack : attacks)
 			{
-				if (count >= 4) // Show up to top 4 incoming attacks
+				if (count >= MAX_INFO_BOXES) // Show up to top N incoming attacks
 				{
 					break;
 				}

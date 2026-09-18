@@ -144,15 +144,16 @@ public class MobCheckWorldOverlay extends Overlay
 			}
 
 			// 3. Render tick countdown above NPC head
-			Point textLoc = npc.getCanvasTextLocation(graphics, attack.ticks + "t", npc.getLogicalHeight() + 30);
+			String tickText = attack.ticks + "t";
+			Point textLoc = npc.getCanvasTextLocation(graphics, tickText, npc.getLogicalHeight() + 30);
 			if (textLoc != null)
 			{
 				graphics.setFont(NPC_FONT);
 				graphics.setColor(Color.BLACK);
-				graphics.drawString(attack.ticks + "t", textLoc.getX() + 1, textLoc.getY() + 1);
+				graphics.drawString(tickText, textLoc.getX() + 1, textLoc.getY() + 1);
 
 				graphics.setColor(attack.ticks <= config.warningThreshold() ? Color.RED : Color.WHITE);
-				graphics.drawString(attack.ticks + "t", textLoc.getX(), textLoc.getY());
+				graphics.drawString(tickText, textLoc.getX(), textLoc.getY());
 			}
 		}
 
