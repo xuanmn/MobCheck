@@ -26,7 +26,7 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
 
-@SuppressWarnings({"deprecation", "null"})
+@SuppressWarnings("deprecation")
 public class MobCheckWorldOverlay extends Overlay
 {
 	private final Client client;

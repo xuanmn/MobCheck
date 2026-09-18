@@ -13,8 +13,7 @@ import java.util.Optional;
 import javax.inject.Inject;
 
 import net.runelite.api.Client;
-import net.runelite.api.widgets.ComponentID;
-import net.runelite.api.widgets.InterfaceID;
+import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
@@ -67,10 +66,10 @@ public class MobCheckPrayerWidgetOverlay extends Overlay
 			return null;
 		}
 
-		Widget prayerWidget = client.getWidget(InterfaceID.PRAYER, style.getChildIndex());
+		Widget prayerWidget = client.getWidget(WidgetID.PRAYER_GROUP_ID, style.getChildIndex());
 		if (prayerWidget == null || prayerWidget.isHidden())
 		{
-			Widget parent = client.getWidget(ComponentID.PRAYER_PARENT);
+			Widget parent = client.getWidget(WidgetID.PRAYER_GROUP_ID, 0);
 			if (parent != null)
 			{
 				Widget[] children = parent.getChildren();
