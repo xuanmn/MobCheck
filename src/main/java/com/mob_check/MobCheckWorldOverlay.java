@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import javax.annotation.Nonnull;
 import javax.inject.Inject;
 
 import net.runelite.api.Client;
@@ -26,10 +27,10 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
 
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "null"})
 public class MobCheckWorldOverlay extends Overlay
 {
-	private final Client client;
+	private final @Nonnull Client client;
 	private final MobCheckPlugin plugin;
 	private final MobCheckConfig config;
 
@@ -41,7 +42,7 @@ public class MobCheckWorldOverlay extends Overlay
 	private final Set<Integer> renderedNpcs = new HashSet<>();
 
 	@Inject
-	public MobCheckWorldOverlay(Client client, MobCheckPlugin plugin, MobCheckConfig config)
+	public MobCheckWorldOverlay(@Nonnull Client client, MobCheckPlugin plugin, MobCheckConfig config)
 	{
 		this.client = client;
 		this.plugin = plugin;
