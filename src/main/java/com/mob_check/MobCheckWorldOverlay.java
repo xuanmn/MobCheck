@@ -26,7 +26,7 @@ import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayPriority;
 
-@SuppressWarnings({"deprecation", "null"})
+@SuppressWarnings("deprecation")
 public class MobCheckWorldOverlay extends Overlay
 {
 	private final Client client;
@@ -110,8 +110,8 @@ public class MobCheckWorldOverlay extends Overlay
 						if (npcSize > 1)
 						{
 							int offset = (npcSize - 1) * Perspective.LOCAL_TILE_SIZE / 2;
-							LocalPoint centeredLp = lp.plus(offset, offset);
-							tilePoly = Perspective.getCanvasTileAreaPoly(client, centeredLp != null ? centeredLp : lp, npcSize);
+							LocalPoint centeredLp = new LocalPoint(lp.getX() + offset, lp.getY() + offset, lp.getWorldView());
+							tilePoly = Perspective.getCanvasTileAreaPoly(client, centeredLp, npcSize);
 						}
 						else
 						{
