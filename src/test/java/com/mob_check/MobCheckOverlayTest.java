@@ -92,8 +92,9 @@ public class MobCheckOverlayTest {
 
 		assertNotNull(overlay.render(graphics));
 
-		// Verify overhead rendering drew the sprite and text string
+		// Verify overhead rendering drew the sprite and text string (drop shadow + foreground)
 		verify(graphics, times(1)).drawImage(eq(sprite), eq(60), eq(100), any());
+		verify(graphics, times(1)).drawString(eq("1t"), eq(96), eq(122));
 		verify(graphics, times(1)).drawString(eq("1t"), eq(95), eq(121));
 	}
 

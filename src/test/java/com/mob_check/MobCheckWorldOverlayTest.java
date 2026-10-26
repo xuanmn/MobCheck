@@ -176,4 +176,32 @@ public class MobCheckWorldOverlayTest
 		verify(npc, atLeastOnce()).getTransformedComposition();
 		verify(transformed, atLeastOnce()).getSize();
 	}
+
+	@Test
+	public void testRenderMultiTileCenteringOffset()
+	{
+		NPC npc = mock(NPC.class);
+		when(npc.getIndex()).thenReturn(70);
+		when(npc.isDead()).thenReturn(false);
+		when(npc.getWorldLocation()).thenReturn(new WorldPoint(20, 30, 0));
+
+		net.runelite.api.WorldView wv = mock(net.runelite.api.WorldView.class);
+		when(wv.getPlane()).thenReturn(0);
+		when(wv.getBaseX()).thenReturn(0);
+		when(wv.getBaseY()).thenReturn(0);
+		when(wv.getSizeX()).thenReturn(104);
+		when(wv.getSizeY()).thenReturn(104);
+		when(client.findWorldViewFromWorldPoint(any())).thenReturn(wv);
+
+		NPCComposition comp = mock(NPCComposition.class);
+		when(comp.getSize()).thenReturn(5);
+		when(npc.getComposition()).thenReturn(comp);
+
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(2, 2, MobCheckPlugin.PrayerStyle.MAGIC, "JalTok-Jad", npc, null, false);
+		when(plugin.getActiveAttacks()).thenReturn(List.of(attack));
+
+		worldOverlay.render(graphics);
+
+		verify(comp, atLeastOnce()).getSize();
+	}
 }

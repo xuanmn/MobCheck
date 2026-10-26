@@ -132,7 +132,7 @@ public class MobCheckOverlay extends Overlay
 				{
 					InfoBoxComponent infoBox = reusableInfoBoxes[count];
 					infoBox.setImage(sprite);
-					infoBox.setText(attack.ticks + "t");
+					infoBox.setText(MobCheckPlugin.formatTicks(attack.ticks));
 
 					boolean itemProtected = plugin.isPrayerProtected(attack.prayerStyle);
 					Color textColor;
@@ -200,11 +200,18 @@ public class MobCheckOverlay extends Overlay
 			// Draw prayer sprite
 			graphics.drawImage(sprite, spriteX, spriteY, null);
 
-			// Draw tick countdown next to the icon
+			// Draw tick countdown next to the icon with drop shadow for readability
+			String tickText = MobCheckPlugin.formatTicks(attack.ticks);
+			int textX = point.getX() - 5;
+			int textY = point.getY() + (sprite.getHeight() / 2) + 5;
+
+			graphics.setFont(OVERHEAD_FONT);
+			graphics.setColor(Color.BLACK);
+			graphics.drawString(tickText, textX + 1, textY + 1);
+
 			Color textColor = isProtected ? PROTECTED_COLOR : (isUrgent ? Color.RED : Color.WHITE);
 			graphics.setColor(textColor);
-			graphics.setFont(OVERHEAD_FONT);
-			graphics.drawString(attack.ticks + "t", point.getX() - 5, point.getY() + (sprite.getHeight() / 2) + 5);
+			graphics.drawString(tickText, textX, textY);
 		}
 	}
 

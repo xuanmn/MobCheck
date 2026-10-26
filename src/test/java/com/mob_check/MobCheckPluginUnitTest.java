@@ -1089,4 +1089,40 @@ public class MobCheckPluginUnitTest
 		assertTrue("Dead NPC melee attack should be purged on tick", plugin.getActiveAttacks().isEmpty());
 		assertFalse(plugin.getPriorityAttack().isPresent());
 	}
+
+	@Test
+	public void testFormatTicksCachedAndFallback()
+	{
+		assertEquals("0t", MobCheckPlugin.formatTicks(0));
+		assertEquals("1t", MobCheckPlugin.formatTicks(1));
+		assertEquals("10t", MobCheckPlugin.formatTicks(10));
+		assertEquals("30t", MobCheckPlugin.formatTicks(30));
+		// Values outside cache boundary fall back to string concatenation safely
+		assertEquals("50t", MobCheckPlugin.formatTicks(50));
+		assertEquals("-1t", MobCheckPlugin.formatTicks(-1));
+	}
+
+	@Test
+	public void testProjectileInfoGetters()
+	{
+		MobCheckPlugin.ProjectileInfo info = new MobCheckPlugin.ProjectileInfo(MobCheckPlugin.PrayerStyle.RANGE, "Jal-Xil");
+		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, info.getPrayerStyle());
+		assertEquals("Jal-Xil", info.getName());
+	}
+
+	@Test
+	public void testRegionCheckingColosseumAndDagKings()
+	{
+		when(client.getMapRegions()).thenReturn(new int[]{7216, 1234});
+		assertTrue(plugin.isInColosseumRegion());
+		assertFalse(plugin.isInDagannothKingsRegion());
+
+		when(client.getMapRegions()).thenReturn(new int[]{11588, 5678});
+		assertFalse(plugin.isInColosseumRegion());
+		assertTrue(plugin.isInDagannothKingsRegion());
+
+		when(client.getMapRegions()).thenReturn(null);
+		assertFalse(plugin.isInColosseumRegion());
+		assertFalse(plugin.isInDagannothKingsRegion());
+	}
 }
