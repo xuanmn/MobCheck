@@ -109,7 +109,8 @@ public class MobCheckWorldOverlay extends Overlay
 						Polygon tilePoly;
 						if (npcSize > 1)
 						{
-							tilePoly = Perspective.getCanvasTileAreaPoly(client, lp, npcSize);
+							int offset = (npcSize - 1) * Perspective.LOCAL_TILE_SIZE / 2;
+							tilePoly = Perspective.getCanvasTileAreaPoly(client, lp.plus(offset, offset), npcSize);
 						}
 						else
 						{
@@ -145,7 +146,7 @@ public class MobCheckWorldOverlay extends Overlay
 			}
 
 			// 3. Render tick countdown above NPC head
-			String tickText = attack.ticks + "t";
+			String tickText = MobCheckPlugin.formatTicks(attack.ticks);
 			Point textLoc = npc.getCanvasTextLocation(graphics, tickText, npc.getLogicalHeight() + 30);
 			if (textLoc != null)
 			{

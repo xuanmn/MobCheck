@@ -125,7 +125,7 @@ public class MobCheckPrayerWidgetOverlay extends Overlay
 		// 2. Render tick countdown on the prayer button
 		if (config.showWidgetTicks())
 		{
-			String tickText = priority.ticks + "t";
+			String tickText = MobCheckPlugin.formatTicks(priority.ticks);
 			graphics.setFont(WIDGET_FONT);
 			FontMetrics fm = graphics.getFontMetrics(WIDGET_FONT);
 			int textWidth = fm.stringWidth(tickText);
