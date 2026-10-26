@@ -274,6 +274,46 @@ public class MobCheckPlugin extends Plugin
 		}
 	}
 
+	public static final class ProjectileInfo
+	{
+		private final PrayerStyle prayerStyle;
+		private final String name;
+
+		public ProjectileInfo(PrayerStyle prayerStyle, String name)
+		{
+			this.prayerStyle = prayerStyle;
+			this.name = name;
+		}
+
+		public PrayerStyle getPrayerStyle()
+		{
+			return prayerStyle;
+		}
+
+		public String getName()
+		{
+			return name;
+		}
+	}
+
+	private static final String[] TICK_STRINGS = new String[31];
+	static
+	{
+		for (int i = 0; i < TICK_STRINGS.length; i++)
+		{
+			TICK_STRINGS[i] = i + "t";
+		}
+	}
+
+	public static String formatTicks(int ticks)
+	{
+		if (ticks >= 0 && ticks < TICK_STRINGS.length)
+		{
+			return TICK_STRINGS[ticks];
+		}
+		return ticks + "t";
+	}
+
 	private static final Comparator<AttackState> ATTACK_COMPARATOR = Comparator.comparingInt(a -> a.ticks);
 	private final Map<Integer, AttackState> npcMeleeAttacks = new HashMap<>();
 	private PrayerStyle lastPriorityPrayer = null;
@@ -284,8 +324,12 @@ public class MobCheckPlugin extends Plugin
 	// #2: Tracks the initial tick count for each projectile (keyed by identity hash)
 	private final Map<Integer, Integer> projectileInitialTicks = new HashMap<>();
 
-	// Comprehensive projectile mappings: projectile ID -> (PrayerStyle, NPC name)
-	private static final Map<Integer, Map.Entry<PrayerStyle, String>> PROJECTILE_INFO = Map.ofEntries(
+	// Reusable set buffers for per-tick projectile processing to avoid heap allocations
+	private final Set<Projectile> seenProjectiles = new HashSet<>();
+	private final Set<Integer> aliveProjectileHashes = new HashSet<>();
+
+	// Comprehensive projectile mappings: projectile ID -> ProjectileInfo(PrayerStyle, NPC name)
+	private static final Map<Integer, ProjectileInfo> PROJECTILE_INFO = Map.ofEntries(
 		// === INFERNO ===
 		projEntry(ProjectileID.JAL_ZEK_MAGIC, PrayerStyle.MAGIC, "Jal-Zek"),
 		projEntry(ProjectileID.JAL_AKREK_MEJ_MAGIC, PrayerStyle.MAGIC, "Jal-AkRek-Mej"),
@@ -327,19 +371,19 @@ public class MobCheckPlugin extends Plugin
 		projEntry(ProjectileID.DAGANNOTH_SUPREME_RANGE_2, PrayerStyle.RANGE, "Dagannoth Supreme")
 	);
 
-	private static Map.Entry<Integer, Map.Entry<PrayerStyle, String>> projEntry(int id, PrayerStyle style, String name)
+	private static Map.Entry<Integer, ProjectileInfo> projEntry(int id, PrayerStyle style, String name)
 	{
-		return Map.entry(id, new AbstractMap.SimpleImmutableEntry<>(style, name));
+		return Map.entry(id, new ProjectileInfo(style, name));
 	}
 
 	// Region-gated projectile mappings (only active in specific regions)
-	private static final Map<Integer, Map.Entry<PrayerStyle, String>> COLOSSEUM_ONLY_PROJECTILE_INFO = Map.of(
-		ProjectileID.FREMENNIK_ARCHER_RANGE, new AbstractMap.SimpleImmutableEntry<>(PrayerStyle.RANGE, "Archer"),
-		ProjectileID.FREMENNIK_SEER_MAGIC, new AbstractMap.SimpleImmutableEntry<>(PrayerStyle.MAGIC, "Seer")
+	private static final Map<Integer, ProjectileInfo> COLOSSEUM_ONLY_PROJECTILE_INFO = Map.of(
+		ProjectileID.FREMENNIK_ARCHER_RANGE, new ProjectileInfo(PrayerStyle.RANGE, "Archer"),
+		ProjectileID.FREMENNIK_SEER_MAGIC, new ProjectileInfo(PrayerStyle.MAGIC, "Seer")
 	);
 
-	private static final Map<Integer, Map.Entry<PrayerStyle, String>> DAGANNOTH_KINGS_ONLY_PROJECTILE_INFO = Map.of(
-		ProjectileID.DAGANNOTH_PRIME_MAGIC, new AbstractMap.SimpleImmutableEntry<>(PrayerStyle.MAGIC, "Dagannoth Prime")
+	private static final Map<Integer, ProjectileInfo> DAGANNOTH_KINGS_ONLY_PROJECTILE_INFO = Map.of(
+		ProjectileID.DAGANNOTH_PRIME_MAGIC, new ProjectileInfo(PrayerStyle.MAGIC, "Dagannoth Prime")
 	);
 
 	// Comprehensive animation mappings (for Melee/Instant attacks)
@@ -385,6 +429,8 @@ public class MobCheckPlugin extends Plugin
 	{
 		npcMeleeAttacks.clear();
 		projectileInitialTicks.clear();
+		seenProjectiles.clear();
+		aliveProjectileHashes.clear();
 		cachedAttacks = Collections.emptyList();
 		lastPriorityPrayer = null;
 		overlayManager.add(overlay);
@@ -398,6 +444,8 @@ public class MobCheckPlugin extends Plugin
 	{
 		npcMeleeAttacks.clear();
 		projectileInitialTicks.clear();
+		seenProjectiles.clear();
+		aliveProjectileHashes.clear();
 		cachedAttacks = Collections.emptyList();
 		lastPriorityPrayer = null;
 		overlayManager.remove(overlay);
@@ -458,6 +506,8 @@ public class MobCheckPlugin extends Plugin
 		{
 			npcMeleeAttacks.clear();
 			projectileInitialTicks.clear();
+			seenProjectiles.clear();
+			aliveProjectileHashes.clear();
 			cachedAttacks = Collections.emptyList();
 			lastPriorityPrayer = null;
 		}
@@ -560,11 +610,11 @@ public class MobCheckPlugin extends Plugin
 	}
 
 	@SuppressWarnings("deprecation")
-	private boolean isPlayerInRegions(Set<Integer> targetRegions)
+	private int[] getPlayerMapRegions()
 	{
-		if (client == null || targetRegions == null || targetRegions.isEmpty())
+		if (client == null)
 		{
-			return false;
+			return null;
 		}
 		int[] regions = null;
 		try
@@ -581,11 +631,16 @@ public class MobCheckPlugin extends Plugin
 		{
 			regions = client.getMapRegions();
 		}
-		if (regions == null)
+		return regions;
+	}
+
+	private static boolean matchesAnyRegion(int[] playerRegions, Set<Integer> targetRegions)
+	{
+		if (playerRegions == null || targetRegions == null || targetRegions.isEmpty())
 		{
 			return false;
 		}
-		for (int region : regions)
+		for (int region : playerRegions)
 		{
 			if (targetRegions.contains(region))
 			{
@@ -599,18 +654,18 @@ public class MobCheckPlugin extends Plugin
 	 * Checks whether the player is currently in a Colosseum region.
 	 * Used to gate generic projectile IDs (15, 160) that would false-positive elsewhere.
 	 */
-	private boolean isInColosseumRegion()
+	public boolean isInColosseumRegion()
 	{
-		return isPlayerInRegions(COLOSSEUM_REGION_IDS);
+		return matchesAnyRegion(getPlayerMapRegions(), COLOSSEUM_REGION_IDS);
 	}
 
 	/**
 	 * Checks whether the player is currently in the Dagannoth Kings Lair region.
 	 * Used to gate generic Water Wave projectile ID (162).
 	 */
-	private boolean isInDagannothKingsRegion()
+	public boolean isInDagannothKingsRegion()
 	{
-		return isPlayerInRegions(DAGANNOTH_KINGS_REGION_IDS);
+		return matchesAnyRegion(getPlayerMapRegions(), DAGANNOTH_KINGS_REGION_IDS);
 	}
 
 	/**
@@ -618,9 +673,9 @@ public class MobCheckPlugin extends Plugin
 	 * considering region-gated IDs. Returns null if the projectile is not recognized.
 	 * Region booleans are passed in to avoid redundant region checks per projectile.
 	 */
-	private Map.Entry<PrayerStyle, String> resolveProjectile(int projectileId, boolean inColosseum, boolean inDagKings)
+	private ProjectileInfo resolveProjectile(int projectileId, boolean inColosseum, boolean inDagKings)
 	{
-		Map.Entry<PrayerStyle, String> info = PROJECTILE_INFO.get(projectileId);
+		ProjectileInfo info = PROJECTILE_INFO.get(projectileId);
 		if (info != null)
 		{
 			return info;
@@ -629,7 +684,7 @@ public class MobCheckPlugin extends Plugin
 		// Check region-gated projectiles (Fremennik Warband arrows/spells)
 		if (inColosseum)
 		{
-			Map.Entry<PrayerStyle, String> colosseumInfo = COLOSSEUM_ONLY_PROJECTILE_INFO.get(projectileId);
+			ProjectileInfo colosseumInfo = COLOSSEUM_ONLY_PROJECTILE_INFO.get(projectileId);
 			if (colosseumInfo != null)
 			{
 				return colosseumInfo;
@@ -639,7 +694,7 @@ public class MobCheckPlugin extends Plugin
 		// Check region-gated Dagannoth Kings projectiles (Water Wave 162)
 		if (inDagKings)
 		{
-			Map.Entry<PrayerStyle, String> dkInfo = DAGANNOTH_KINGS_ONLY_PROJECTILE_INFO.get(projectileId);
+			ProjectileInfo dkInfo = DAGANNOTH_KINGS_ONLY_PROJECTILE_INFO.get(projectileId);
 			if (dkInfo != null)
 			{
 				return dkInfo;
@@ -658,15 +713,16 @@ public class MobCheckPlugin extends Plugin
 		List<AttackState> attacks = new ArrayList<>();
 		Player localPlayer = client.getLocalPlayer();
 
-		// #5: Track seen projectiles for deduplication within this tick
-		Set<Projectile> seenProjectiles = new HashSet<>();
+		// #5: Track seen projectiles for deduplication within this tick (reusing buffer)
+		seenProjectiles.clear();
 
-		// #2: Track which projectile identity hashes are still alive to prune stale entries
-		Set<Integer> aliveProjectileHashes = new HashSet<>();
+		// #2: Track which projectile identity hashes are still alive to prune stale entries (reusing buffer)
+		aliveProjectileHashes.clear();
 
 		// Cache region checks once per tick to avoid redundant calls per projectile
-		boolean inColosseum = isInColosseumRegion();
-		boolean inDagKings = isInDagannothKingsRegion();
+		int[] mapRegions = getPlayerMapRegions();
+		boolean inColosseum = matchesAnyRegion(mapRegions, COLOSSEUM_REGION_IDS);
+		boolean inDagKings = matchesAnyRegion(mapRegions, DAGANNOTH_KINGS_REGION_IDS);
 
 		// Gather active projectiles targeting the player
 		if (localPlayer != null && client.getProjectiles() != null)
@@ -685,9 +741,9 @@ public class MobCheckPlugin extends Plugin
 				}
 
 				int id = projectile.getId();
-				Map.Entry<PrayerStyle, String> projInfo = resolveProjectile(id, inColosseum, inDagKings);
-				PrayerStyle prayerStyle = projInfo != null ? projInfo.getKey() : null;
-				String resolvedName = projInfo != null ? projInfo.getValue() : null;
+				ProjectileInfo projInfo = resolveProjectile(id, inColosseum, inDagKings);
+				PrayerStyle prayerStyle = projInfo != null ? projInfo.getPrayerStyle() : null;
+				String resolvedName = projInfo != null ? projInfo.getName() : null;
 				if (prayerStyle == null && config.trackUnknownProjectiles())
 				{
 					prayerStyle = PrayerStyle.MAGIC;
