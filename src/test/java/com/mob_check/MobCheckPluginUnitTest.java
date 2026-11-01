@@ -33,6 +33,11 @@ public class MobCheckPluginUnitTest
 	private MobCheckPlugin plugin;
 	private Client client;
 	private MobCheckConfig config;
+	private MobCheckOverlay overlay;
+	private MobCheckHudOverlay hudOverlay;
+	private MobCheckPrayerWidgetOverlay prayerWidgetOverlay;
+	private MobCheckWorldOverlay worldOverlay;
+	private net.runelite.client.ui.overlay.OverlayManager overlayManager;
 
 	@Before
 	public void setUp() throws Exception
@@ -40,11 +45,11 @@ public class MobCheckPluginUnitTest
 		plugin = new MobCheckPlugin();
 		client = mock(Client.class);
 		config = mock(MobCheckConfig.class);
-		MobCheckOverlay overlay = mock(MobCheckOverlay.class);
-		MobCheckHudOverlay hudOverlay = mock(MobCheckHudOverlay.class);
-		MobCheckPrayerWidgetOverlay prayerWidgetOverlay = mock(MobCheckPrayerWidgetOverlay.class);
-		MobCheckWorldOverlay worldOverlay = mock(MobCheckWorldOverlay.class);
-		net.runelite.client.ui.overlay.OverlayManager overlayManager = mock(net.runelite.client.ui.overlay.OverlayManager.class);
+		overlay = mock(MobCheckOverlay.class);
+		hudOverlay = mock(MobCheckHudOverlay.class);
+		prayerWidgetOverlay = mock(MobCheckPrayerWidgetOverlay.class);
+		worldOverlay = mock(MobCheckWorldOverlay.class);
+		overlayManager = mock(net.runelite.client.ui.overlay.OverlayManager.class);
 
 		// Default config mocks
 		when(config.magicSoundId()).thenReturn(2266);
@@ -666,8 +671,17 @@ public class MobCheckPluginUnitTest
 		tickAndRefresh();
 		assertFalse(plugin.getActiveAttacks().isEmpty());
 
+		verify(overlayManager, times(1)).add(overlay);
+		verify(overlayManager, times(1)).add(hudOverlay);
+		verify(overlayManager, times(1)).add(prayerWidgetOverlay);
+		verify(overlayManager, times(1)).add(worldOverlay);
+
 		plugin.shutDown();
 		assertTrue(plugin.getActiveAttacks().isEmpty());
+		verify(overlayManager, times(1)).remove(overlay);
+		verify(overlayManager, times(1)).remove(hudOverlay);
+		verify(overlayManager, times(1)).remove(prayerWidgetOverlay);
+		verify(overlayManager, times(1)).remove(worldOverlay);
 	}
 
 	@Test
@@ -1198,5 +1212,88 @@ public class MobCheckPluginUnitTest
 
 		tickAndRefresh();
 		verify(client, times(0)).playSoundEffect(2675);
+
+		// Clear attacks for a tick, then fire a new projectile while UNPROTECTED
+		net.runelite.api.Deque<Projectile> emptyDeque = createMockDeque(Collections.emptyList());
+		when(client.getProjectiles()).thenReturn(emptyDeque);
+		tickAndRefresh();
+
+		when(client.getProjectiles()).thenReturn(deque);
+		when(client.isPrayerActive(Prayer.PROTECT_FROM_MAGIC)).thenReturn(false);
+		tickAndRefresh();
+		verify(client, times(1)).playSoundEffect(2675);
+	}
+
+	@Test
+	public void testSameTickTieBreakerPrioritizesLethalBossMeleeOverBlobProjectile()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		// Inferno Blob Magic projectile landing in 3 ticks (max hit 29)
+		Projectile blobProj = mock(Projectile.class);
+		when(blobProj.getTargetActor()).thenReturn(player);
+		when(blobProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_AK_MAGIC);
+		when(blobProj.getRemainingCycles()).thenReturn(90); // 3 ticks
+		net.runelite.api.Deque<Projectile> blobDeque = createMockDeque(List.of(blobProj));
+		when(client.getProjectiles()).thenReturn(blobDeque);
+
+		// JalTok-Jad Melee animation (4 initial -> 3 ticks after onGameTick, max hit 97)
+		NPC jad = mock(NPC.class);
+		when(jad.getIndex()).thenReturn(901);
+		when(jad.getName()).thenReturn("JalTok-Jad");
+		when(jad.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JALTOK_JAD_MELEE);
+		when(jad.getInteracting()).thenReturn(player);
+
+		AnimationChanged anim = new AnimationChanged();
+		anim.setActor(jad);
+		plugin.onAnimationChanged(anim);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(2, attacks.size());
+		assertEquals("JalTok-Jad", attacks.get(0).npcName);
+		assertEquals(MobCheckPlugin.PrayerStyle.MELEE, attacks.get(0).prayerStyle);
+		assertEquals(3, attacks.get(0).ticks);
+		assertEquals("Jal-Ak (Magic)", attacks.get(1).npcName);
+	}
+
+	@Test
+	public void testSameTickInfernoHierarchyMagerRangerBlobBat()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		Projectile bat = mock(Projectile.class);
+		when(bat.getTargetActor()).thenReturn(player);
+		when(bat.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_MEJRAH_RANGE);
+		when(bat.getRemainingCycles()).thenReturn(60); // 2t
+
+		Projectile blob = mock(Projectile.class);
+		when(blob.getTargetActor()).thenReturn(player);
+		when(blob.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_AK_MAGIC);
+		when(blob.getRemainingCycles()).thenReturn(60); // 2t
+
+		Projectile ranger = mock(Projectile.class);
+		when(ranger.getTargetActor()).thenReturn(player);
+		when(ranger.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_XIL_RANGE);
+		when(ranger.getRemainingCycles()).thenReturn(60); // 2t
+
+		Projectile mager = mock(Projectile.class);
+		when(mager.getTargetActor()).thenReturn(player);
+		when(mager.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_ZEK_MAGIC);
+		when(mager.getRemainingCycles()).thenReturn(60); // 2t
+
+		// Inserted in ascending threat order [bat, blob, ranger, mager]
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(bat, blob, ranger, mager));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(4, attacks.size());
+		assertEquals("Jal-Zek", attacks.get(0).npcName);
+		assertEquals("Jal-Xil", attacks.get(1).npcName);
+		assertEquals("Jal-Ak (Magic)", attacks.get(2).npcName);
+		assertEquals("Jal-MejRah", attacks.get(3).npcName);
 	}
 }

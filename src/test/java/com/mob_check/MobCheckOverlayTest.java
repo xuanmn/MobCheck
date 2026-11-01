@@ -21,23 +21,31 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
+import net.runelite.api.Client;
+import net.runelite.api.Point;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.tooltip.Tooltip;
+import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 
 public class MobCheckOverlayTest
 {
 	private MobCheckOverlay overlay;
+	private Client client;
 	private MobCheckPlugin plugin;
 	private MobCheckConfig config;
 	private SpriteManager spriteManager;
+	private TooltipManager tooltipManager;
 	private Graphics2D graphics;
 
 	@Before
 	public void setUp()
 	{
+		client = mock(Client.class);
 		plugin = mock(MobCheckPlugin.class);
 		config = mock(MobCheckConfig.class);
 		spriteManager = mock(SpriteManager.class);
+		tooltipManager = mock(TooltipManager.class);
 		graphics = mock(Graphics2D.class);
 
 		FontMetrics fontMetrics = mock(FontMetrics.class);
@@ -50,7 +58,7 @@ public class MobCheckOverlayTest
 		when(config.showInfoBox()).thenReturn(true);
 		when(config.warningThreshold()).thenReturn(1);
 
-		overlay = new MobCheckOverlay(plugin, config, spriteManager);
+		overlay = new MobCheckOverlay(client, plugin, config, spriteManager, tooltipManager);
 	}
 
 	@Test
@@ -77,7 +85,7 @@ public class MobCheckOverlayTest
 	}
 
 	@Test
-	public void testRenderInfoBoxPopulatesTooltipWithNpcNameAndStyle()
+	public void testHoveringInfoBoxSubmitsTooltipToTooltipManager()
 	{
 		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
 		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
@@ -86,8 +94,45 @@ public class MobCheckOverlayTest
 		BufferedImage sprite = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
 		when(spriteManager.getSprite(anyInt(), eq(0))).thenReturn(sprite);
 
+		// Simulate OverlayRenderer translating TOP_LEFT overlay bounds to (10, 20)
+		overlay.getBounds().setLocation(10, 20);
+		// PanelComponent default border is 4px; first 32x32 InfoBox spans rel (4..36, 4..36) -> canvas (14..46, 24..56)
+		when(client.getMouseCanvasPosition()).thenReturn(new Point(25, 35));
+
 		assertNotNull(overlay.render(graphics));
-		assertEquals("Jal-Zek - Pray Magic", overlay.getTooltipForIndex(0));
+		verify(tooltipManager, times(1)).add(new Tooltip("Jal-Zek - Pray Magic"));
+	}
+
+	@Test
+	public void testUnhoveredInfoBoxDoesNotSubmitTooltip()
+	{
+		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
+		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
+
+		BufferedImage sprite = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+		when(spriteManager.getSprite(anyInt(), eq(0))).thenReturn(sprite);
+
+		overlay.getBounds().setLocation(10, 20);
+		when(client.getMouseCanvasPosition()).thenReturn(new Point(500, 500));
+
+		assertNotNull(overlay.render(graphics));
+		verify(tooltipManager, never()).add(any());
+	}
+
+	@Test
+	public void testHoveringInfoBoxWithNullNpcNameFallsBackToStyleDisplayName()
+	{
+		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.RANGE, null);
+		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
+
+		BufferedImage sprite = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+		when(spriteManager.getSprite(anyInt(), eq(0))).thenReturn(sprite);
+
+		overlay.getBounds().setLocation(0, 0);
+		when(client.getMouseCanvasPosition()).thenReturn(new Point(15, 15));
+
+		assertNotNull(overlay.render(graphics));
+		verify(tooltipManager, times(1)).add(new Tooltip("Pray Range"));
 	}
 
 	@Test
@@ -112,13 +157,13 @@ public class MobCheckOverlayTest
 	}
 
 	@Test
-	public void testManticoreComboHeaderInInfoBox()
+	public void testManticoreComboHeaderInInfoBoxStillSubmitsHoveredBoxTooltip()
 	{
 		MobCheckPlugin.AttackState manticoreAttack = new MobCheckPlugin.AttackState(
 			1,
 			1,
 			MobCheckPlugin.PrayerStyle.MAGIC,
-			"Manticore",
+			"Manticore (Magic)",
 			null,
 			true);
 		when(plugin.getActiveAttacks()).thenReturn(List.of(manticoreAttack));
@@ -127,6 +172,12 @@ public class MobCheckOverlayTest
 		BufferedImage sprite = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
 		when(spriteManager.getSprite(anyInt(), eq(0))).thenReturn(sprite);
 
+		// Render once to discover actual layout bounds of first InfoBox below TitleComponent
 		assertNotNull(overlay.render(graphics));
+		// TitleComponent occupies top ~16px; InfoBox sits below it around y=20..52, x=4..36
+		when(client.getMouseCanvasPosition()).thenReturn(new Point(20, 30));
+
+		assertNotNull(overlay.render(graphics));
+		verify(tooltipManager, times(1)).add(new Tooltip("Manticore (Magic) - Pray Magic"));
 	}
 }

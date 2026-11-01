@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -230,8 +231,9 @@ public class MobCheckPlugin extends Plugin
 	}
 
 	public static final int THREAT_LOW = 1;
-	public static final int THREAT_NORMAL = 2;
+	public static final int THREAT_MEDIUM = 2;
 	public static final int THREAT_HIGH = 3;
+	public static final int THREAT_CRITICAL = 4;
 
 	public static class AttackState
 	{
@@ -245,12 +247,12 @@ public class MobCheckPlugin extends Plugin
 
 		public AttackState(int ticks, PrayerStyle prayerStyle, String npcName)
 		{
-			this(ticks, ticks, prayerStyle, npcName, null, false, THREAT_NORMAL);
+			this(ticks, ticks, prayerStyle, npcName, null, false, THREAT_MEDIUM);
 		}
 
 		public AttackState(int ticks, int initialTicks, PrayerStyle prayerStyle, String npcName, NPC sourceNpc, boolean isManticoreCombo)
 		{
-			this(ticks, initialTicks, prayerStyle, npcName, sourceNpc, isManticoreCombo, THREAT_NORMAL);
+			this(ticks, initialTicks, prayerStyle, npcName, sourceNpc, isManticoreCombo, THREAT_MEDIUM);
 		}
 
 		public AttackState(int ticks, int initialTicks, PrayerStyle prayerStyle, String npcName, NPC sourceNpc, boolean isManticoreCombo, int threatWeight)
@@ -281,7 +283,7 @@ public class MobCheckPlugin extends Plugin
 
 		public ProjectileInfo(PrayerStyle prayerStyle, String name)
 		{
-			this(prayerStyle, name, THREAT_HIGH);
+			this(prayerStyle, name, THREAT_CRITICAL);
 		}
 
 		public ProjectileInfo(PrayerStyle prayerStyle, String name, int threatWeight)
@@ -299,6 +301,28 @@ public class MobCheckPlugin extends Plugin
 		public String getName()
 		{
 			return name;
+		}
+
+		public int getThreatWeight()
+		{
+			return threatWeight;
+		}
+	}
+
+	public static final class MeleeInfo
+	{
+		private final int warningTicks;
+		private final int threatWeight;
+
+		public MeleeInfo(int warningTicks, int threatWeight)
+		{
+			this.warningTicks = warningTicks;
+			this.threatWeight = threatWeight;
+		}
+
+		public int getWarningTicks()
+		{
+			return warningTicks;
 		}
 
 		public int getThreatWeight()
@@ -328,7 +352,7 @@ public class MobCheckPlugin extends Plugin
 	private static final Comparator<AttackState> ATTACK_COMPARATOR = Comparator
 		.comparingInt((AttackState a) -> a.ticks)
 		.thenComparing(Comparator.comparingInt((AttackState a) -> a.threatWeight).reversed());
-	private final Map<Integer, AttackState> npcMeleeAttacks = new HashMap<>();
+	private final Map<Integer, AttackState> npcMeleeAttacks = new LinkedHashMap<>();
 	private PrayerStyle lastPriorityPrayer = null;
 
 	// #1: Cached attack list — rebuilt once per game tick
@@ -344,44 +368,44 @@ public class MobCheckPlugin extends Plugin
 	// Comprehensive projectile mappings: projectile ID -> ProjectileInfo(PrayerStyle, NPC name, threatWeight)
 	private static final Map<Integer, ProjectileInfo> PROJECTILE_INFO = Map.ofEntries(
 		// === INFERNO ===
-		projEntry(ProjectileID.JAL_ZEK_MAGIC, PrayerStyle.MAGIC, "Jal-Zek", THREAT_HIGH),
+		projEntry(ProjectileID.JAL_ZEK_MAGIC, PrayerStyle.MAGIC, "Jal-Zek", THREAT_CRITICAL),
 		projEntry(ProjectileID.JAL_AKREK_MEJ_MAGIC, PrayerStyle.MAGIC, "Jal-AkRek-Mej", THREAT_LOW),
-		projEntry(ProjectileID.JAL_XIL_RANGE, PrayerStyle.RANGE, "Jal-Xil", THREAT_NORMAL),
+		projEntry(ProjectileID.JAL_XIL_RANGE, PrayerStyle.RANGE, "Jal-Xil", THREAT_HIGH),
 		projEntry(ProjectileID.JAL_AKREK_XIL_RANGE, PrayerStyle.RANGE, "Jal-AkRek-Xil", THREAT_LOW),
-		projEntry(ProjectileID.JAL_AK_MAGIC, PrayerStyle.MAGIC, "Jal-Ak (Magic)", THREAT_NORMAL),
-		projEntry(ProjectileID.JAL_AK_RANGE, PrayerStyle.RANGE, "Jal-Ak (Range)", THREAT_NORMAL),
+		projEntry(ProjectileID.JAL_AK_MAGIC, PrayerStyle.MAGIC, "Jal-Ak (Magic)", THREAT_MEDIUM),
+		projEntry(ProjectileID.JAL_AK_RANGE, PrayerStyle.RANGE, "Jal-Ak (Range)", THREAT_MEDIUM),
 		projEntry(ProjectileID.JAL_MEJRAH_RANGE, PrayerStyle.RANGE, "Jal-MejRah", THREAT_LOW),
-		projEntry(ProjectileID.JALTOK_JAD_MAGIC, PrayerStyle.MAGIC, "JalTok-Jad (Magic)", THREAT_HIGH),
-		projEntry(ProjectileID.JALTOK_JAD_RANGE, PrayerStyle.RANGE, "JalTok-Jad (Range)", THREAT_HIGH),
+		projEntry(ProjectileID.JALTOK_JAD_MAGIC, PrayerStyle.MAGIC, "JalTok-Jad (Magic)", THREAT_CRITICAL),
+		projEntry(ProjectileID.JALTOK_JAD_RANGE, PrayerStyle.RANGE, "JalTok-Jad (Range)", THREAT_CRITICAL),
 		// === FORTIS COLOSSEUM ===
-		projEntry(ProjectileID.SERPENT_SHAMAN_MAGIC, PrayerStyle.MAGIC, "Serpent Shaman", THREAT_HIGH),
-		projEntry(ProjectileID.JAVELINIC_COLOSSUS_RANGE, PrayerStyle.RANGE, "Javelinic Colossus", THREAT_HIGH),
-		projEntry(ProjectileID.MANTICORE_MAGIC, PrayerStyle.MAGIC, "Manticore (Magic)", THREAT_HIGH),
-		projEntry(ProjectileID.MANTICORE_RANGE, PrayerStyle.RANGE, "Manticore (Range)", THREAT_HIGH),
-		projEntry(ProjectileID.SOL_HEREDIT_MAGIC, PrayerStyle.MAGIC, "Sol Heredit", THREAT_HIGH),
+		projEntry(ProjectileID.SERPENT_SHAMAN_MAGIC, PrayerStyle.MAGIC, "Serpent Shaman", THREAT_CRITICAL),
+		projEntry(ProjectileID.JAVELINIC_COLOSSUS_RANGE, PrayerStyle.RANGE, "Javelinic Colossus", THREAT_CRITICAL),
+		projEntry(ProjectileID.MANTICORE_MAGIC, PrayerStyle.MAGIC, "Manticore (Magic)", THREAT_CRITICAL),
+		projEntry(ProjectileID.MANTICORE_RANGE, PrayerStyle.RANGE, "Manticore (Range)", THREAT_CRITICAL),
+		projEntry(ProjectileID.SOL_HEREDIT_MAGIC, PrayerStyle.MAGIC, "Sol Heredit", THREAT_CRITICAL),
 		// Note: Fremennik Archer (15) and Seer (160) are generic engine IDs.
 		// They are only matched inside Colosseum regions — see COLOSSEUM_ONLY_PROJECTILE_INFO.
 		// === ADDITIONAL BOSSES ===
-		projEntry(ProjectileID.ZULRAH_MAGIC, PrayerStyle.MAGIC, "Zulrah", THREAT_HIGH),
-		projEntry(ProjectileID.ZULRAH_RANGE, PrayerStyle.RANGE, "Zulrah", THREAT_HIGH),
-		projEntry(ProjectileID.VORKATH_MAGIC, PrayerStyle.MAGIC, "Vorkath", THREAT_HIGH),
-		projEntry(ProjectileID.VORKATH_RANGE, PrayerStyle.RANGE, "Vorkath", THREAT_HIGH),
-		projEntry(ProjectileID.CERBERUS_MAGIC, PrayerStyle.MAGIC, "Cerberus", THREAT_HIGH),
-		projEntry(ProjectileID.CERBERUS_RANGE, PrayerStyle.RANGE, "Cerberus", THREAT_HIGH),
-		projEntry(ProjectileID.HYDRA_MAGIC, PrayerStyle.MAGIC, "Alchemical Hydra", THREAT_HIGH),
-		projEntry(ProjectileID.HYDRA_RANGE, PrayerStyle.RANGE, "Alchemical Hydra", THREAT_HIGH),
-		projEntry(ProjectileID.HUNLLEF_MAGIC, PrayerStyle.MAGIC, "Hunllef", THREAT_HIGH),
-		projEntry(ProjectileID.HUNLLEF_RANGE, PrayerStyle.RANGE, "Hunllef", THREAT_HIGH),
-		projEntry(ProjectileID.DEMONIC_GORILLA_MAGIC, PrayerStyle.MAGIC, "Demonic Gorilla", THREAT_HIGH),
-		projEntry(ProjectileID.DEMONIC_GORILLA_RANGE, PrayerStyle.RANGE, "Demonic Gorilla", THREAT_HIGH),
-		projEntry(ProjectileID.ZILYANA_MAGIC, PrayerStyle.MAGIC, "Commander Zilyana", THREAT_HIGH),
-		projEntry(ProjectileID.KRIL_MAGIC, PrayerStyle.MAGIC, "K'ril Tsutsaroth", THREAT_HIGH),
-		projEntry(ProjectileID.MUSPAH_MAGIC, PrayerStyle.MAGIC, "Phantom Muspah (Magic)", THREAT_HIGH),
-		projEntry(ProjectileID.MUSPAH_RANGE, PrayerStyle.RANGE, "Phantom Muspah (Range)", THREAT_HIGH),
-		projEntry(ProjectileID.TORMENTED_DEMON_MAGIC, PrayerStyle.MAGIC, "Tormented Demon (Magic)", THREAT_HIGH),
-		projEntry(ProjectileID.TORMENTED_DEMON_RANGE, PrayerStyle.RANGE, "Tormented Demon (Range)", THREAT_HIGH),
-		projEntry(ProjectileID.DAGANNOTH_SUPREME_RANGE, PrayerStyle.RANGE, "Dagannoth Supreme", THREAT_NORMAL),
-		projEntry(ProjectileID.DAGANNOTH_SUPREME_RANGE_2, PrayerStyle.RANGE, "Dagannoth Supreme", THREAT_NORMAL)
+		projEntry(ProjectileID.ZULRAH_MAGIC, PrayerStyle.MAGIC, "Zulrah", THREAT_CRITICAL),
+		projEntry(ProjectileID.ZULRAH_RANGE, PrayerStyle.RANGE, "Zulrah", THREAT_CRITICAL),
+		projEntry(ProjectileID.VORKATH_MAGIC, PrayerStyle.MAGIC, "Vorkath", THREAT_CRITICAL),
+		projEntry(ProjectileID.VORKATH_RANGE, PrayerStyle.RANGE, "Vorkath", THREAT_CRITICAL),
+		projEntry(ProjectileID.CERBERUS_MAGIC, PrayerStyle.MAGIC, "Cerberus", THREAT_CRITICAL),
+		projEntry(ProjectileID.CERBERUS_RANGE, PrayerStyle.RANGE, "Cerberus", THREAT_CRITICAL),
+		projEntry(ProjectileID.HYDRA_MAGIC, PrayerStyle.MAGIC, "Alchemical Hydra", THREAT_CRITICAL),
+		projEntry(ProjectileID.HYDRA_RANGE, PrayerStyle.RANGE, "Alchemical Hydra", THREAT_CRITICAL),
+		projEntry(ProjectileID.HUNLLEF_MAGIC, PrayerStyle.MAGIC, "Hunllef", THREAT_CRITICAL),
+		projEntry(ProjectileID.HUNLLEF_RANGE, PrayerStyle.RANGE, "Hunllef", THREAT_CRITICAL),
+		projEntry(ProjectileID.DEMONIC_GORILLA_MAGIC, PrayerStyle.MAGIC, "Demonic Gorilla", THREAT_CRITICAL),
+		projEntry(ProjectileID.DEMONIC_GORILLA_RANGE, PrayerStyle.RANGE, "Demonic Gorilla", THREAT_CRITICAL),
+		projEntry(ProjectileID.ZILYANA_MAGIC, PrayerStyle.MAGIC, "Commander Zilyana", THREAT_CRITICAL),
+		projEntry(ProjectileID.KRIL_MAGIC, PrayerStyle.MAGIC, "K'ril Tsutsaroth", THREAT_CRITICAL),
+		projEntry(ProjectileID.MUSPAH_MAGIC, PrayerStyle.MAGIC, "Phantom Muspah (Magic)", THREAT_CRITICAL),
+		projEntry(ProjectileID.MUSPAH_RANGE, PrayerStyle.RANGE, "Phantom Muspah (Range)", THREAT_CRITICAL),
+		projEntry(ProjectileID.TORMENTED_DEMON_MAGIC, PrayerStyle.MAGIC, "Tormented Demon (Magic)", THREAT_CRITICAL),
+		projEntry(ProjectileID.TORMENTED_DEMON_RANGE, PrayerStyle.RANGE, "Tormented Demon (Range)", THREAT_CRITICAL),
+		projEntry(ProjectileID.DAGANNOTH_SUPREME_RANGE, PrayerStyle.RANGE, "Dagannoth Supreme", THREAT_HIGH),
+		projEntry(ProjectileID.DAGANNOTH_SUPREME_RANGE_2, PrayerStyle.RANGE, "Dagannoth Supreme", THREAT_HIGH)
 	);
 
 	private static Map.Entry<Integer, ProjectileInfo> projEntry(int id, PrayerStyle style, String name, int threatWeight)
@@ -391,45 +415,50 @@ public class MobCheckPlugin extends Plugin
 
 	// Region-gated projectile mappings (only active in specific regions)
 	private static final Map<Integer, ProjectileInfo> COLOSSEUM_ONLY_PROJECTILE_INFO = Map.of(
-		ProjectileID.FREMENNIK_ARCHER_RANGE, new ProjectileInfo(PrayerStyle.RANGE, "Archer", THREAT_NORMAL),
-		ProjectileID.FREMENNIK_SEER_MAGIC, new ProjectileInfo(PrayerStyle.MAGIC, "Seer", THREAT_NORMAL)
+		ProjectileID.FREMENNIK_ARCHER_RANGE, new ProjectileInfo(PrayerStyle.RANGE, "Archer", THREAT_MEDIUM),
+		ProjectileID.FREMENNIK_SEER_MAGIC, new ProjectileInfo(PrayerStyle.MAGIC, "Seer", THREAT_MEDIUM)
 	);
 
 	private static final Map<Integer, ProjectileInfo> DAGANNOTH_KINGS_ONLY_PROJECTILE_INFO = Map.of(
-		ProjectileID.DAGANNOTH_PRIME_MAGIC, new ProjectileInfo(PrayerStyle.MAGIC, "Dagannoth Prime", THREAT_HIGH)
+		ProjectileID.DAGANNOTH_PRIME_MAGIC, new ProjectileInfo(PrayerStyle.MAGIC, "Dagannoth Prime", THREAT_CRITICAL)
 	);
 
 	// Comprehensive animation mappings (for Melee/Instant attacks)
-	private static final Map<Integer, Integer> MELEE_ANIMATIONS = Map.ofEntries(
+	private static final Map<Integer, MeleeInfo> MELEE_ANIMATIONS = Map.ofEntries(
 		// === INFERNO ANIMATIONS ===
-		Map.entry(AnimationID.JAL_IMKOT_MELEE, 4),
-		Map.entry(AnimationID.JAL_ZEK_MELEE, 4),
-		Map.entry(AnimationID.JAL_XIL_MELEE, 4),
-		Map.entry(AnimationID.JAL_AK_MELEE, 4),
-		Map.entry(AnimationID.JALTOK_JAD_MELEE, 4),
-		Map.entry(AnimationID.JAL_MEJRAH_MELEE, 4),
+		meleeEntry(AnimationID.JAL_IMKOT_MELEE, 4, THREAT_HIGH),
+		meleeEntry(AnimationID.JAL_ZEK_MELEE, 4, THREAT_HIGH),
+		meleeEntry(AnimationID.JAL_XIL_MELEE, 4, THREAT_HIGH),
+		meleeEntry(AnimationID.JAL_AK_MELEE, 4, THREAT_MEDIUM),
+		meleeEntry(AnimationID.JALTOK_JAD_MELEE, 4, THREAT_CRITICAL),
+		meleeEntry(AnimationID.JAL_MEJRAH_MELEE, 4, THREAT_LOW),
 		// === FORTIS COLOSSEUM ANIMATIONS ===
-		Map.entry(AnimationID.JAGUAR_WARRIOR_MELEE, 4),
-		Map.entry(AnimationID.MINOTAUR_MELEE, 4),
-		Map.entry(AnimationID.FREMENNIK_BERSERKER_MELEE, 4),
-		Map.entry(AnimationID.SHOCKWAVE_COLOSSUS_MELEE, 4),
-		Map.entry(AnimationID.SOL_HEREDIT_MELEE_ATTACK, 4),
-		Map.entry(AnimationID.SOL_HEREDIT_MELEE_SWEEP, 4),
-		Map.entry(AnimationID.SOL_HEREDIT_MELEE_SLAM, 4),
+		meleeEntry(AnimationID.JAGUAR_WARRIOR_MELEE, 4, THREAT_HIGH),
+		meleeEntry(AnimationID.MINOTAUR_MELEE, 4, THREAT_CRITICAL),
+		meleeEntry(AnimationID.FREMENNIK_BERSERKER_MELEE, 4, THREAT_MEDIUM),
+		meleeEntry(AnimationID.SHOCKWAVE_COLOSSUS_MELEE, 4, THREAT_CRITICAL),
+		meleeEntry(AnimationID.SOL_HEREDIT_MELEE_ATTACK, 4, THREAT_CRITICAL),
+		meleeEntry(AnimationID.SOL_HEREDIT_MELEE_SWEEP, 4, THREAT_CRITICAL),
+		meleeEntry(AnimationID.SOL_HEREDIT_MELEE_SLAM, 4, THREAT_CRITICAL),
 		// === ADDITIONAL MELEE ANIMATIONS ===
-		Map.entry(AnimationID.ABYSSAL_DEMON_MELEE, 4),
-		Map.entry(AnimationID.BLOODVELD_MELEE, 4),
-		Map.entry(AnimationID.ZILYANA_MELEE, 2),
-		Map.entry(AnimationID.GRAARDOR_MELEE, 6),
-		Map.entry(AnimationID.KRIL_MELEE, 6),
-		Map.entry(AnimationID.CERBERUS_MELEE, 6),
-		Map.entry(AnimationID.DEMONIC_GORILLA_MELEE, 5),
-		Map.entry(AnimationID.MUSPAH_MELEE_ATTACK, 6),
-		Map.entry(AnimationID.MUSPAH_MELEE_SWIPE, 6),
-		Map.entry(AnimationID.TORMENTED_DEMON_MELEE, 4),
-		Map.entry(AnimationID.DAGANNOTH_REX_MELEE, 4),
-		Map.entry(AnimationID.DAGANNOTH_REX_MELEE_2, 4)
+		meleeEntry(AnimationID.ABYSSAL_DEMON_MELEE, 4, THREAT_LOW),
+		meleeEntry(AnimationID.BLOODVELD_MELEE, 4, THREAT_LOW),
+		meleeEntry(AnimationID.ZILYANA_MELEE, 2, THREAT_CRITICAL),
+		meleeEntry(AnimationID.GRAARDOR_MELEE, 6, THREAT_CRITICAL),
+		meleeEntry(AnimationID.KRIL_MELEE, 6, THREAT_CRITICAL),
+		meleeEntry(AnimationID.CERBERUS_MELEE, 6, THREAT_CRITICAL),
+		meleeEntry(AnimationID.DEMONIC_GORILLA_MELEE, 5, THREAT_CRITICAL),
+		meleeEntry(AnimationID.MUSPAH_MELEE_ATTACK, 6, THREAT_CRITICAL),
+		meleeEntry(AnimationID.MUSPAH_MELEE_SWIPE, 6, THREAT_CRITICAL),
+		meleeEntry(AnimationID.TORMENTED_DEMON_MELEE, 4, THREAT_CRITICAL),
+		meleeEntry(AnimationID.DAGANNOTH_REX_MELEE, 4, THREAT_HIGH),
+		meleeEntry(AnimationID.DAGANNOTH_REX_MELEE_2, 4, THREAT_HIGH)
 	);
+
+	private static Map.Entry<Integer, MeleeInfo> meleeEntry(int animId, int warningTicks, int threatWeight)
+	{
+		return Map.entry(animId, new MeleeInfo(warningTicks, threatWeight));
+	}
 
 	@Provides
 	MobCheckConfig provideConfig(ConfigManager configManager)
@@ -495,10 +524,10 @@ public class MobCheckPlugin extends Plugin
 		}
 
 		int anim = npc.getAnimation();
-
-		if (MELEE_ANIMATIONS.containsKey(anim))
+		MeleeInfo meleeInfo = MELEE_ANIMATIONS.get(anim);
+		if (meleeInfo != null)
 		{
-			int warningTicks = MELEE_ANIMATIONS.get(anim);
+			int warningTicks = meleeInfo.getWarningTicks();
 			String name = npc.getName() != null ? npc.getName() : "Enemy";
 			npcMeleeAttacks.put(npc.getIndex(), new AttackState(
 				warningTicks,
@@ -506,7 +535,8 @@ public class MobCheckPlugin extends Plugin
 				PrayerStyle.MELEE,
 				name,
 				npc,
-				false
+				false,
+				meleeInfo.getThreatWeight()
 			));
 			log.debug("Melee attack registered: {} (anim={}, ticks={})", name, anim, warningTicks);
 		}

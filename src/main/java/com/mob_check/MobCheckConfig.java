@@ -133,7 +133,7 @@ public interface MobCheckConfig extends Config
 	@ConfigItem(
 		keyName = "flashWrongPrayerWidget",
 		name = "Flash Wrong Prayer",
-		description = "Pulses a bright red border around the required prayer when unprotected at 1 tick",
+		description = "Pulses a bright red border around the required prayer when unprotected within the warning threshold",
 		section = prayerWidgetSection,
 		position = 3
 	)
@@ -149,7 +149,7 @@ public interface MobCheckConfig extends Config
 	@ConfigItem(
 		keyName = "flashScreenOnWrongPrayer",
 		name = "Flash Screen on Wrong Prayer",
-		description = "Flashes a red danger border around your screen if unprotected when an attack hits in 1 tick",
+		description = "Flashes a red danger border around your screen if unprotected within the warning threshold",
 		section = dangerSection,
 		position = 1
 	)

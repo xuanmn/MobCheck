@@ -41,7 +41,7 @@
 ### 5. Configurable Audio Alerts & Emergency Cues
 
 - **Style-Specific Sounds**: Plays customizable sound effect IDs when the priority prayer style changes (Magic, Range, Melee).
-- **Emergency Wrong Prayer Buzzer**: Plays an emergency warning sound (Default ID: `2277`) when an attack is landing in $\le 1$ tick without the correct protection active.
+- **Emergency Wrong Prayer Buzzer**: Plays an emergency warning sound (Default ID: `2277`) when an attack is within the configured warning threshold (default $\le 1$ tick) without the correct protection active.
 
 ### 6. Top-Threat Queue & Manticore Combo Sequence Panel
 
@@ -96,8 +96,8 @@ Inside the RuneLite Configuration Panel under **Mob Check**, the following optio
 |                            | `Warning Threshold`             | `1`              | Remaining tick count at which visual elements turn red for immediate urgency.                       |
 | **Prayer Book Highlights** | `Highlight Prayer Button`       | `true`           | Highlights the required protection prayer directly in the Prayer Tab interface.                     |
 |                            | `Show Ticks on Prayer Button`   | `true`           | Displays remaining ticks directly over the prayer button in the Prayer Tab.                         |
-|                            | `Flash Wrong Prayer`            | `true`           | Pulses a bright red border & fill over the required prayer button when unprotected at $\le 1$ tick. |
-| **Danger & Warnings**      | `Flash Screen on Wrong Prayer`  | `true`           | Flashes a red screen border if unprotected when an incoming attack lands in $\le 1$ tick.           |
+|                            | `Flash Wrong Prayer`            | `true`           | Pulses a bright red border & fill over the required prayer button when unprotected within the warning threshold. |
+| **Danger & Warnings**      | `Flash Screen on Wrong Prayer`  | `true`           | Flashes a red screen border if unprotected when an incoming attack is within the warning threshold.              |
 |                            | `Danger Flash Color`            | `Red (Alpha 70)` | Color and transparency for the emergency screen flash border.                                       |
 | **Audio Alerts**           | `Play Sound Alert`              | `true`           | Plays an audio cue when the priority prayer style switches.                                         |
 |                            | `Only Alert When Unprotected`   | `false`          | Suppresses priority-change sound cues when the required protection prayer is already active.        |
