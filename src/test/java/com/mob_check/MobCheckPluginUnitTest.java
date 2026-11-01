@@ -41,6 +41,7 @@ public class MobCheckPluginUnitTest
 		client = mock(Client.class);
 		config = mock(MobCheckConfig.class);
 		MobCheckOverlay overlay = mock(MobCheckOverlay.class);
+		MobCheckHudOverlay hudOverlay = mock(MobCheckHudOverlay.class);
 		MobCheckPrayerWidgetOverlay prayerWidgetOverlay = mock(MobCheckPrayerWidgetOverlay.class);
 		MobCheckWorldOverlay worldOverlay = mock(MobCheckWorldOverlay.class);
 		net.runelite.client.ui.overlay.OverlayManager overlayManager = mock(net.runelite.client.ui.overlay.OverlayManager.class);
@@ -51,11 +52,13 @@ public class MobCheckPluginUnitTest
 		when(config.meleeSoundId()).thenReturn(2268);
 		when(config.wrongPrayerSoundId()).thenReturn(2277);
 		when(config.playWrongPrayerAlert()).thenReturn(false);
+		when(config.warningThreshold()).thenReturn(1);
 
 		// Inject private fields
 		setPrivateField(plugin, "client", client);
 		setPrivateField(plugin, "config", config);
 		setPrivateField(plugin, "overlay", overlay);
+		setPrivateField(plugin, "hudOverlay", hudOverlay);
 		setPrivateField(plugin, "prayerWidgetOverlay", prayerWidgetOverlay);
 		setPrivateField(plugin, "worldOverlay", worldOverlay);
 		setPrivateField(plugin, "overlayManager", overlayManager);
@@ -1113,16 +1116,87 @@ public class MobCheckPluginUnitTest
 	@Test
 	public void testRegionCheckingColosseumAndDagKings()
 	{
-		when(client.getMapRegions()).thenReturn(new int[]{7216, 1234});
-		assertTrue(plugin.isInColosseumRegion());
-		assertFalse(plugin.isInDagannothKingsRegion());
+		assertTrue(MobCheckPlugin.matchesAnyRegion(new int[]{7216, 1234}, MobCheckPlugin.COLOSSEUM_REGION_IDS));
+		assertFalse(MobCheckPlugin.matchesAnyRegion(new int[]{7216, 1234}, MobCheckPlugin.DAGANNOTH_KINGS_REGION_IDS));
 
-		when(client.getMapRegions()).thenReturn(new int[]{11588, 5678});
-		assertFalse(plugin.isInColosseumRegion());
-		assertTrue(plugin.isInDagannothKingsRegion());
+		assertFalse(MobCheckPlugin.matchesAnyRegion(new int[]{11588, 5678}, MobCheckPlugin.COLOSSEUM_REGION_IDS));
+		assertTrue(MobCheckPlugin.matchesAnyRegion(new int[]{11588, 5678}, MobCheckPlugin.DAGANNOTH_KINGS_REGION_IDS));
 
-		when(client.getMapRegions()).thenReturn(null);
-		assertFalse(plugin.isInColosseumRegion());
-		assertFalse(plugin.isInDagannothKingsRegion());
+		assertFalse(MobCheckPlugin.matchesAnyRegion(null, MobCheckPlugin.COLOSSEUM_REGION_IDS));
+		assertFalse(MobCheckPlugin.matchesAnyRegion(null, MobCheckPlugin.DAGANNOTH_KINGS_REGION_IDS));
+	}
+
+	@Test
+	public void testSameTickTieBreakerPrioritizesHighThreatMagerOverBat()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		// Bat (max hit 19) appears FIRST in deque, landing in 2 ticks
+		Projectile batProj = mock(Projectile.class);
+		when(batProj.getTargetActor()).thenReturn(player);
+		when(batProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_MEJRAH_RANGE);
+		when(batProj.getRemainingCycles()).thenReturn(60); // 2 ticks
+
+		// Mager (max hit 70) appears SECOND in deque, also landing in 2 ticks
+		Projectile magerProj = mock(Projectile.class);
+		when(magerProj.getTargetActor()).thenReturn(player);
+		when(magerProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_ZEK_MAGIC);
+		when(magerProj.getRemainingCycles()).thenReturn(60); // 2 ticks
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(batProj, magerProj));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(2, attacks.size());
+		assertEquals("Jal-Zek", attacks.get(0).npcName);
+		assertEquals(MobCheckPlugin.PrayerStyle.MAGIC, attacks.get(0).prayerStyle);
+		assertEquals("Jal-MejRah", attacks.get(1).npcName);
+		assertEquals(MobCheckPlugin.PrayerStyle.RANGE, attacks.get(1).prayerStyle);
+	}
+
+	@Test
+	public void testEmergencySoundAlertRespectsConfiguredWarningThreshold()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+		when(config.playWrongPrayerAlert()).thenReturn(true);
+		when(config.warningThreshold()).thenReturn(2);
+		when(config.wrongPrayerSoundId()).thenReturn(2277);
+
+		Projectile proj = mock(Projectile.class);
+		when(proj.getTargetActor()).thenReturn(player);
+		when(proj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_ZEK_MAGIC);
+		when(proj.getRemainingCycles()).thenReturn(60); // 2 ticks
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(proj));
+		when(client.getProjectiles()).thenReturn(deque);
+		when(client.isPrayerActive(Prayer.PROTECT_FROM_MAGIC)).thenReturn(false);
+
+		tickAndRefresh();
+		verify(client, times(1)).playSoundEffect(2277);
+	}
+
+	@Test
+	public void testOnlyAlertWhenUnprotectedSuppressesSoundWhenPrayerAlreadyActive()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+		when(config.playSoundAlert()).thenReturn(true);
+		when(config.onlyAlertWhenUnprotected()).thenReturn(true);
+		when(config.magicSoundId()).thenReturn(2675);
+
+		Projectile proj = mock(Projectile.class);
+		when(proj.getTargetActor()).thenReturn(player);
+		when(proj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_ZEK_MAGIC);
+		when(proj.getRemainingCycles()).thenReturn(90); // 3 ticks
+
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(proj));
+		when(client.getProjectiles()).thenReturn(deque);
+		when(client.isPrayerActive(Prayer.PROTECT_FROM_MAGIC)).thenReturn(true);
+
+		tickAndRefresh();
+		verify(client, times(0)).playSoundEffect(2675);
 	}
 }

@@ -1,18 +1,13 @@
 package com.mob_check;
 
-import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Graphics2D;
-import java.awt.Stroke;
 import java.awt.image.BufferedImage;
 import java.util.List;
 
 import javax.inject.Inject;
 
-import net.runelite.api.Client;
-import net.runelite.api.Player;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
@@ -23,25 +18,20 @@ import net.runelite.client.ui.overlay.components.TitleComponent;
 
 public class MobCheckOverlay extends Overlay
 {
-	private final Client client;
 	private final MobCheckPlugin plugin;
 	private final MobCheckConfig config;
 	private final SpriteManager spriteManager;
 	private final PanelComponent panelComponent = new PanelComponent();
 
-	private static final Font OVERHEAD_FONT = new Font("Arial", Font.BOLD, 18);
-	private static final Stroke RING_STROKE = new BasicStroke(3f);
-	private static final float SCREEN_FLASH_WIDTH = 16f;
-	private static final int SCREEN_FLASH_INSET = (int) (SCREEN_FLASH_WIDTH / 2);
-	private static final Stroke SCREEN_FLASH_STROKE = new BasicStroke(SCREEN_FLASH_WIDTH);
-	private static final Color PROGRESS_RING_BG_COLOR = new Color(0, 0, 0, 120);
-	private static final Color PROTECTED_COLOR = new Color(0, 255, 60);
 	private static final Color INFOBOX_BG_COLOR = new Color(0, 0, 0, 160);
 	private static final int MAX_INFO_BOXES = 4;
 
 	private final InfoBoxComponent[] reusableInfoBoxes = new InfoBoxComponent[MAX_INFO_BOXES];
 	{
-		for (int i = 0; i < MAX_INFO_BOXES; i++) { reusableInfoBoxes[i] = new InfoBoxComponent(); }
+		for (int i = 0; i < MAX_INFO_BOXES; i++)
+		{
+			reusableInfoBoxes[i] = new InfoBoxComponent();
+		}
 	}
 	private final TitleComponent manticoreComboTitle = TitleComponent.builder()
 		.text("Manticore Combo")
@@ -49,9 +39,8 @@ public class MobCheckOverlay extends Overlay
 		.build();
 
 	@Inject
-	public MobCheckOverlay(Client client, MobCheckPlugin plugin, MobCheckConfig config, SpriteManager spriteManager)
+	public MobCheckOverlay(MobCheckPlugin plugin, MobCheckConfig config, SpriteManager spriteManager)
 	{
-		this.client = client;
 		this.plugin = plugin;
 		this.config = config;
 		this.spriteManager = spriteManager;
@@ -62,7 +51,7 @@ public class MobCheckOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		if (!config.showInfoBox() && !config.showOverhead() && !config.flashScreenOnWrongPrayer())
+		if (!config.showInfoBox())
 		{
 			return null;
 		}
@@ -73,146 +62,74 @@ public class MobCheckOverlay extends Overlay
 			return null;
 		}
 
-		MobCheckPlugin.AttackState priority = attacks.get(0);
-		boolean isProtected = plugin.isPrayerProtected(priority.prayerStyle);
-		boolean isUrgent = priority.ticks <= config.warningThreshold();
+		panelComponent.getChildren().clear();
 
-		// 1. Screen Danger Vignette Flash on Wrong Prayer (at 1 tick)
-		if (config.flashScreenOnWrongPrayer() && isUrgent && !isProtected)
+		boolean hasManticoreCombo = false;
+		for (int i = 0; i < attacks.size(); i++)
 		{
-			int width = client.getCanvasWidth();
-			int height = client.getCanvasHeight();
-			if (width > 0 && height > 0)
+			if (attacks.get(i).isManticoreCombo)
 			{
-				graphics.setColor(config.dangerFlashColor());
-				graphics.setStroke(SCREEN_FLASH_STROKE);
-				graphics.drawRect(SCREEN_FLASH_INSET, SCREEN_FLASH_INSET, width - (SCREEN_FLASH_INSET * 2), height - (SCREEN_FLASH_INSET * 2));
+				hasManticoreCombo = true;
+				break;
 			}
 		}
 
-		// 2. Render immediate priority attack above player's head
-		if (config.showOverhead())
+		if (hasManticoreCombo && config.showComboSequence())
 		{
-			BufferedImage sprite = getPrayerSprite(priority.prayerStyle);
+			panelComponent.getChildren().add(manticoreComboTitle);
+		}
+
+		int count = 0;
+		for (MobCheckPlugin.AttackState attack : attacks)
+		{
+			if (count >= MAX_INFO_BOXES) // Show up to top N incoming attacks
+			{
+				break;
+			}
+			BufferedImage sprite = getPrayerSprite(attack.prayerStyle);
 			if (sprite != null)
 			{
-				renderAbovePlayer(graphics, sprite, priority, isProtected, isUrgent);
+				InfoBoxComponent infoBox = reusableInfoBoxes[count];
+				infoBox.setImage(sprite);
+				infoBox.setText(MobCheckPlugin.formatTicks(attack.ticks));
+				infoBox.setTooltip(formatTooltip(attack));
+
+				boolean itemProtected = plugin.isPrayerProtected(attack.prayerStyle);
+				Color textColor;
+				if (itemProtected)
+				{
+					textColor = Color.GREEN;
+				}
+				else if (attack.ticks <= config.warningThreshold())
+				{
+					textColor = Color.RED;
+				}
+				else
+				{
+					textColor = Color.WHITE;
+				}
+
+				infoBox.setColor(textColor);
+				infoBox.setBackgroundColor(INFOBOX_BG_COLOR);
+				panelComponent.getChildren().add(infoBox);
+				count++;
 			}
 		}
-
-		// 3. Render active attacks in the sidebar info panel
-		if (config.showInfoBox())
-		{
-			panelComponent.getChildren().clear();
-
-			boolean hasManticoreCombo = false;
-			for (int i = 0; i < attacks.size(); i++)
-			{
-				if (attacks.get(i).isManticoreCombo)
-				{
-					hasManticoreCombo = true;
-					break;
-				}
-			}
-
-			if (hasManticoreCombo && config.showComboSequence())
-			{
-				panelComponent.getChildren().add(manticoreComboTitle);
-			}
-
-			int count = 0;
-			for (MobCheckPlugin.AttackState attack : attacks)
-			{
-				if (count >= MAX_INFO_BOXES) // Show up to top N incoming attacks
-				{
-					break;
-				}
-				BufferedImage sprite = getPrayerSprite(attack.prayerStyle);
-				if (sprite != null)
-				{
-					InfoBoxComponent infoBox = reusableInfoBoxes[count];
-					infoBox.setImage(sprite);
-					infoBox.setText(MobCheckPlugin.formatTicks(attack.ticks));
-
-					boolean itemProtected = plugin.isPrayerProtected(attack.prayerStyle);
-					Color textColor;
-					if (itemProtected)
-					{
-						textColor = Color.GREEN;
-					}
-					else if (attack.ticks <= config.warningThreshold())
-					{
-						textColor = Color.RED;
-					}
-					else
-					{
-						textColor = Color.WHITE;
-					}
-
-					infoBox.setColor(textColor);
-					infoBox.setBackgroundColor(INFOBOX_BG_COLOR);
-					panelComponent.getChildren().add(infoBox);
-					count++;
-				}
-			}
-			return panelComponent.render(graphics);
-		}
-
-		return null;
+		return panelComponent.render(graphics);
 	}
 
-	private void renderAbovePlayer(Graphics2D graphics, BufferedImage sprite, MobCheckPlugin.AttackState attack, boolean isProtected, boolean isUrgent)
+	String getTooltipForIndex(int index)
 	{
-		Player player = client.getLocalPlayer();
-		if (player == null)
+		return reusableInfoBoxes[index].getTooltip();
+	}
+
+	private static String formatTooltip(MobCheckPlugin.AttackState attack)
+	{
+		if (attack.npcName != null && !attack.npcName.isEmpty())
 		{
-			return;
+			return attack.npcName + " - " + attack.getStyleDisplayName();
 		}
-
-		// Offset slightly to the side of the actual overheads
-		net.runelite.api.Point point = player.getCanvasImageLocation(sprite, player.getLogicalHeight() + 100);
-		if (point != null)
-		{
-			int spriteX = point.getX() - 40;
-			int spriteY = point.getY();
-
-			// Draw Tick Progress Arc around icon if enabled
-			if (config.showTickProgressRing() && attack.initialTicks > 0)
-			{
-				int ringSize = Math.max(sprite.getWidth(), sprite.getHeight()) + 8;
-				int ringX = spriteX + (sprite.getWidth() - ringSize) / 2;
-				int ringY = spriteY + (sprite.getHeight() - ringSize) / 2;
-
-				// Background ring
-				graphics.setColor(PROGRESS_RING_BG_COLOR);
-				graphics.setStroke(RING_STROKE);
-				graphics.drawOval(ringX, ringY, ringSize, ringSize);
-
-				// Active progress arc (progress increases as ticks decrease)
-				double progressRatio = (double) attack.ticks / attack.initialTicks;
-				int arcAngle = (int) (360.0 * Math.max(0.0, Math.min(1.0, progressRatio)));
-
-				Color ringColor = isProtected ? PROTECTED_COLOR : (isUrgent ? Color.RED : attack.prayerStyle.getColor());
-				graphics.setColor(ringColor);
-				graphics.drawArc(ringX, ringY, ringSize, ringSize, 90, -arcAngle);
-			}
-
-			// Draw prayer sprite
-			graphics.drawImage(sprite, spriteX, spriteY, null);
-
-			// Draw tick countdown next to the icon with drop shadow for readability
-			String tickText = MobCheckPlugin.formatTicks(attack.ticks);
-			int textX = point.getX() - 5;
-			int textY = point.getY() + (sprite.getHeight() / 2) + 5;
-
-			graphics.setFont(OVERHEAD_FONT);
-			graphics.setColor(Color.BLACK);
-			graphics.drawString(tickText, textX + 1, textY + 1);
-
-			Color textColor = isProtected ? PROTECTED_COLOR : (isUrgent ? Color.RED : Color.WHITE);
-			graphics.setColor(textColor);
-			graphics.drawString(tickText, textX, textY);
-		}
+		return attack.getStyleDisplayName();
 	}
 
 	private BufferedImage getPrayerSprite(MobCheckPlugin.PrayerStyle style)

@@ -13,14 +13,11 @@ import java.util.Optional;
 import javax.inject.Inject;
 
 import net.runelite.api.Client;
-import net.runelite.api.widgets.WidgetID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
-import net.runelite.client.ui.overlay.OverlayPriority;
 
-@SuppressWarnings("deprecation")
 public class MobCheckPrayerWidgetOverlay extends Overlay
 {
 	private final Client client;
@@ -42,7 +39,7 @@ public class MobCheckPrayerWidgetOverlay extends Overlay
 		this.config = config;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_WIDGETS);
-		setPriority(OverlayPriority.HIGH);
+		setPriority(Overlay.PRIORITY_HIGH);
 	}
 
 	@Override
@@ -66,20 +63,7 @@ public class MobCheckPrayerWidgetOverlay extends Overlay
 			return null;
 		}
 
-		Widget prayerWidget = client.getWidget(WidgetID.PRAYER_GROUP_ID, style.getChildIndex());
-		if (prayerWidget == null || prayerWidget.isHidden())
-		{
-			Widget parent = client.getWidget(WidgetID.PRAYER_GROUP_ID, 0);
-			if (parent != null)
-			{
-				Widget[] children = parent.getChildren();
-				if (children != null && style.getChildIndex() < children.length)
-				{
-					prayerWidget = children[style.getChildIndex()];
-				}
-			}
-		}
-
+		Widget prayerWidget = client.getWidget(style.getComponentId());
 		if (prayerWidget == null || prayerWidget.isHidden())
 		{
 			return null;
@@ -93,54 +77,64 @@ public class MobCheckPrayerWidgetOverlay extends Overlay
 
 		boolean isProtected = plugin.isPrayerProtected(style);
 		boolean isUrgent = priority.ticks <= config.warningThreshold();
+		Stroke originalStroke = graphics.getStroke();
+		Font originalFont = graphics.getFont();
 
-		// 1. Highlight box outline on prayer button
-		if (config.highlightPrayerWidget())
+		try
 		{
-			if (isProtected)
+			// 1. Highlight box outline on prayer button
+			if (config.highlightPrayerWidget())
 			{
-				// Green border when correctly active
-				graphics.setColor(ACTIVE_BORDER_COLOR);
-				graphics.setStroke(REGULAR_STROKE);
-				graphics.drawRect(bounds.x, bounds.y, bounds.width, bounds.height);
+				if (isProtected)
+				{
+					// Green border when correctly active
+					graphics.setColor(ACTIVE_BORDER_COLOR);
+					graphics.setStroke(REGULAR_STROKE);
+					graphics.drawRect(bounds.x, bounds.y, bounds.width, bounds.height);
+				}
+				else if (isUrgent && config.flashWrongPrayerWidget())
+				{
+					// Emergency red pulsing outline and semi-transparent flash
+					graphics.setColor(DANGER_BORDER_COLOR);
+					graphics.setStroke(THICK_STROKE);
+					graphics.drawRect(bounds.x - 1, bounds.y - 1, bounds.width + 2, bounds.height + 2);
+					graphics.setColor(DANGER_FILL_COLOR);
+					graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+				}
+				else
+				{
+					// Normal indicator outline matching prayer style color
+					graphics.setColor(style.getColor());
+					graphics.setStroke(REGULAR_STROKE);
+					graphics.drawRect(bounds.x, bounds.y, bounds.width, bounds.height);
+				}
 			}
-			else if (isUrgent && config.flashWrongPrayerWidget())
+
+			// 2. Render tick countdown on the prayer button
+			if (config.showWidgetTicks())
 			{
-				// Emergency red pulsing outline and semi-transparent flash
-				graphics.setColor(DANGER_BORDER_COLOR);
-				graphics.setStroke(THICK_STROKE);
-				graphics.drawRect(bounds.x - 1, bounds.y - 1, bounds.width + 2, bounds.height + 2);
-				graphics.setColor(DANGER_FILL_COLOR);
-				graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-			}
-			else
-			{
-				// Normal indicator outline matching prayer style color
-				graphics.setColor(style.getColor());
-				graphics.setStroke(REGULAR_STROKE);
-				graphics.drawRect(bounds.x, bounds.y, bounds.width, bounds.height);
+				String tickText = MobCheckPlugin.formatTicks(priority.ticks);
+				graphics.setFont(WIDGET_FONT);
+				FontMetrics fm = graphics.getFontMetrics(WIDGET_FONT);
+				int textWidth = fm.stringWidth(tickText);
+
+				int textX = bounds.x + (bounds.width - textWidth) / 2;
+				int textY = bounds.y + bounds.height - 4;
+
+				// Draw shadow for readability
+				graphics.setColor(Color.BLACK);
+				graphics.drawString(tickText, textX + 1, textY + 1);
+
+				// Draw text
+				Color textColor = (!isProtected && isUrgent) ? Color.RED : Color.WHITE;
+				graphics.setColor(textColor);
+				graphics.drawString(tickText, textX, textY);
 			}
 		}
-
-		// 2. Render tick countdown on the prayer button
-		if (config.showWidgetTicks())
+		finally
 		{
-			String tickText = MobCheckPlugin.formatTicks(priority.ticks);
-			graphics.setFont(WIDGET_FONT);
-			FontMetrics fm = graphics.getFontMetrics(WIDGET_FONT);
-			int textWidth = fm.stringWidth(tickText);
-
-			int textX = bounds.x + (bounds.width - textWidth) / 2;
-			int textY = bounds.y + bounds.height - 4;
-
-			// Draw shadow for readability
-			graphics.setColor(Color.BLACK);
-			graphics.drawString(tickText, textX + 1, textY + 1);
-
-			// Draw text
-			Color textColor = (!isProtected && isUrgent) ? Color.RED : Color.WHITE;
-			graphics.setColor(textColor);
-			graphics.drawString(tickText, textX, textY);
+			graphics.setStroke(originalStroke);
+			graphics.setFont(originalFont);
 		}
 
 		return null;

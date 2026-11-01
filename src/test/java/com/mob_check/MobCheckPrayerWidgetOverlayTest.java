@@ -1,5 +1,6 @@
 package com.mob_check;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -10,18 +11,21 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.awt.BasicStroke;
+import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.Stroke;
 import java.util.Optional;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import net.runelite.api.Client;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 
-@SuppressWarnings("deprecation")
 public class MobCheckPrayerWidgetOverlayTest
 {
 	private MobCheckPrayerWidgetOverlay overlay;
@@ -29,6 +33,8 @@ public class MobCheckPrayerWidgetOverlayTest
 	private MobCheckPlugin plugin;
 	private MobCheckConfig config;
 	private Graphics2D graphics;
+	private Font originalFont;
+	private Stroke originalStroke;
 
 	@Before
 	public void setUp()
@@ -37,6 +43,11 @@ public class MobCheckPrayerWidgetOverlayTest
 		plugin = mock(MobCheckPlugin.class);
 		config = mock(MobCheckConfig.class);
 		graphics = mock(Graphics2D.class);
+
+		originalFont = new Font("Dialog", Font.PLAIN, 12);
+		originalStroke = new BasicStroke(1f);
+		when(graphics.getFont()).thenReturn(originalFont);
+		when(graphics.getStroke()).thenReturn(originalStroke);
 
 		FontMetrics fontMetrics = mock(FontMetrics.class);
 		when(graphics.getFontMetrics()).thenReturn(fontMetrics);
@@ -51,6 +62,14 @@ public class MobCheckPrayerWidgetOverlayTest
 		when(config.warningThreshold()).thenReturn(1);
 
 		overlay = new MobCheckPrayerWidgetOverlay(client, plugin, config);
+	}
+
+	@Test
+	public void testPrayerStyleUsesGamevalComponentIds()
+	{
+		assertEquals(InterfaceID.Prayerbook.PRAYER17, MobCheckPlugin.PrayerStyle.MAGIC.getComponentId());
+		assertEquals(InterfaceID.Prayerbook.PRAYER18, MobCheckPlugin.PrayerStyle.RANGE.getComponentId());
+		assertEquals(InterfaceID.Prayerbook.PRAYER19, MobCheckPlugin.PrayerStyle.MELEE.getComponentId());
 	}
 
 	@Test
@@ -72,7 +91,7 @@ public class MobCheckPrayerWidgetOverlayTest
 	}
 
 	@Test
-	public void testRenderWidgetHighlightProtected()
+	public void testRenderWidgetHighlightProtectedAndRestoresGraphicsState()
 	{
 		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
 		when(plugin.getPriorityAttack()).thenReturn(Optional.of(attack));
@@ -81,7 +100,7 @@ public class MobCheckPrayerWidgetOverlayTest
 		Widget widget = mock(Widget.class);
 		when(widget.isHidden()).thenReturn(false);
 		when(widget.getBounds()).thenReturn(new Rectangle(50, 100, 30, 30));
-		when(client.getWidget(anyInt(), eq(MobCheckPlugin.PrayerStyle.MAGIC.getChildIndex()))).thenReturn(widget);
+		when(client.getWidget(InterfaceID.Prayerbook.PRAYER17)).thenReturn(widget);
 
 		overlay.render(graphics);
 
@@ -89,6 +108,9 @@ public class MobCheckPrayerWidgetOverlayTest
 		verify(graphics, times(1)).drawRect(50, 100, 30, 30);
 		// Verified tick text drawn (shadow + foreground)
 		verify(graphics, times(2)).drawString(eq("2t"), anyInt(), anyInt());
+		// Verified Graphics2D stroke and font restored
+		verify(graphics).setStroke(originalStroke);
+		verify(graphics).setFont(originalFont);
 	}
 
 	@Test
@@ -101,43 +123,13 @@ public class MobCheckPrayerWidgetOverlayTest
 		Widget widget = mock(Widget.class);
 		when(widget.isHidden()).thenReturn(false);
 		when(widget.getBounds()).thenReturn(new Rectangle(60, 120, 30, 30));
-		when(client.getWidget(anyInt(), eq(MobCheckPlugin.PrayerStyle.RANGE.getChildIndex()))).thenReturn(widget);
+		when(client.getWidget(InterfaceID.Prayerbook.PRAYER18)).thenReturn(widget);
 
 		overlay.render(graphics);
 
 		// Emergency red flash rectangle fill + outline drawn
 		verify(graphics, times(1)).fillRect(60, 120, 30, 30);
 		verify(graphics, times(1)).drawRect(59, 119, 32, 32);
-	}
-
-	@Test
-	public void testRenderFallbackToParentChildren()
-	{
-		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(3, MobCheckPlugin.PrayerStyle.MELEE, "Jal-ImKot");
-		when(plugin.getPriorityAttack()).thenReturn(Optional.of(attack));
-		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.MELEE)).thenReturn(false);
-
-		// Direct widget lookup returns null
-		when(client.getWidget(anyInt(), eq(MobCheckPlugin.PrayerStyle.MELEE.getChildIndex()))).thenReturn(null);
-
-		// Parent has children array
-		Widget parent = mock(Widget.class);
-		when(parent.isHidden()).thenReturn(false);
-
-		Widget child = mock(Widget.class);
-		when(child.isHidden()).thenReturn(false);
-		when(child.getBounds()).thenReturn(new Rectangle(70, 140, 30, 30));
-
-		Widget[] children = new Widget[30];
-		children[MobCheckPlugin.PrayerStyle.MELEE.getChildIndex()] = child;
-		when(parent.getChildren()).thenReturn(children);
-
-		when(client.getWidget(net.runelite.api.widgets.WidgetID.PRAYER_GROUP_ID, 0)).thenReturn(parent);
-
-		overlay.render(graphics);
-
-		verify(graphics, times(1)).drawRect(70, 140, 30, 30);
-		verify(graphics, times(2)).drawString(eq("3t"), anyInt(), anyInt());
 	}
 
 	@Test
@@ -148,7 +140,7 @@ public class MobCheckPrayerWidgetOverlayTest
 
 		Widget widget = mock(Widget.class);
 		when(widget.isHidden()).thenReturn(true);
-		when(client.getWidget(anyInt(), eq(MobCheckPlugin.PrayerStyle.MAGIC.getChildIndex()))).thenReturn(widget);
+		when(client.getWidget(InterfaceID.Prayerbook.PRAYER17)).thenReturn(widget);
 
 		assertNull(overlay.render(graphics));
 	}
@@ -166,7 +158,7 @@ public class MobCheckPrayerWidgetOverlayTest
 		Widget widget = mock(Widget.class);
 		when(widget.isHidden()).thenReturn(false);
 		when(widget.getBounds()).thenReturn(new Rectangle(50, 100, 30, 30));
-		when(client.getWidget(anyInt(), eq(MobCheckPlugin.PrayerStyle.MAGIC.getChildIndex()))).thenReturn(widget);
+		when(client.getWidget(InterfaceID.Prayerbook.PRAYER17)).thenReturn(widget);
 
 		overlay.render(graphics);
 

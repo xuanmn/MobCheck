@@ -6,20 +6,25 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.awt.BasicStroke;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Shape;
+import java.awt.Stroke;
 import java.awt.geom.Rectangle2D;
 import java.util.Collections;
 import java.util.List;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.InOrder;
 
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
@@ -35,6 +40,8 @@ public class MobCheckWorldOverlayTest
 	private MobCheckPlugin plugin;
 	private MobCheckConfig config;
 	private Graphics2D graphics;
+	private Font originalFont;
+	private Stroke originalStroke;
 
 	@Before
 	public void setUp()
@@ -43,6 +50,11 @@ public class MobCheckWorldOverlayTest
 		plugin = mock(MobCheckPlugin.class);
 		config = mock(MobCheckConfig.class);
 		graphics = mock(Graphics2D.class);
+
+		originalFont = new Font("Dialog", Font.PLAIN, 12);
+		originalStroke = new BasicStroke(1f);
+		when(graphics.getFont()).thenReturn(originalFont);
+		when(graphics.getStroke()).thenReturn(originalStroke);
 
 		when(config.highlightThreatNpc()).thenReturn(true);
 		when(config.highlightNpcTrueTile()).thenReturn(true);
@@ -88,7 +100,6 @@ public class MobCheckWorldOverlayTest
 			MobCheckPlugin.PrayerStyle.MAGIC,
 			"Jal-Zek",
 			npc,
-			null,
 			false
 		);
 		when(plugin.getActiveAttacks()).thenReturn(List.of(attack));
@@ -98,8 +109,15 @@ public class MobCheckWorldOverlayTest
 		// Verified hull drawn and filled
 		verify(graphics, times(1)).draw(hull);
 		verify(graphics, times(1)).fill(hull);
+		// Verified NPC font set BEFORE getCanvasTextLocation computes centering metrics
+		InOrder order = inOrder(graphics, npc);
+		order.verify(graphics).setFont(any(Font.class));
+		order.verify(npc).getCanvasTextLocation(eq(graphics), eq("3t"), anyInt());
 		// Verified tick text drawn above NPC
 		verify(graphics, times(1)).drawString(eq("3t"), eq(100), eq(80));
+		// Verified Graphics2D state restored
+		verify(graphics).setStroke(originalStroke);
+		verify(graphics).setFont(originalFont);
 	}
 
 	@Test
@@ -115,7 +133,6 @@ public class MobCheckWorldOverlayTest
 			MobCheckPlugin.PrayerStyle.RANGE,
 			"Jal-Xil",
 			deadNpc,
-			null,
 			false
 		);
 		when(plugin.getActiveAttacks()).thenReturn(List.of(attack));
@@ -138,8 +155,8 @@ public class MobCheckWorldOverlayTest
 		when(npc.getConvexHull()).thenReturn(hull);
 
 		// Two simultaneous attacks from same NPC (e.g. Manticore rapid sequence)
-		MobCheckPlugin.AttackState attack1 = new MobCheckPlugin.AttackState(1, 1, MobCheckPlugin.PrayerStyle.MAGIC, "Manticore", npc, null, true);
-		MobCheckPlugin.AttackState attack2 = new MobCheckPlugin.AttackState(2, 2, MobCheckPlugin.PrayerStyle.RANGE, "Manticore", npc, null, true);
+		MobCheckPlugin.AttackState attack1 = new MobCheckPlugin.AttackState(1, 1, MobCheckPlugin.PrayerStyle.MAGIC, "Manticore", npc, true);
+		MobCheckPlugin.AttackState attack2 = new MobCheckPlugin.AttackState(2, 2, MobCheckPlugin.PrayerStyle.RANGE, "Manticore", npc, true);
 		when(plugin.getActiveAttacks()).thenReturn(List.of(attack1, attack2));
 
 		worldOverlay.render(graphics);
@@ -168,7 +185,7 @@ public class MobCheckWorldOverlayTest
 		when(transformed.getSize()).thenReturn(3);
 		when(npc.getTransformedComposition()).thenReturn(transformed);
 
-		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(1, 1, MobCheckPlugin.PrayerStyle.MAGIC, "Phantom Muspah", npc, null, false);
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(1, 1, MobCheckPlugin.PrayerStyle.MAGIC, "Phantom Muspah", npc, false);
 		when(plugin.getActiveAttacks()).thenReturn(List.of(attack));
 
 		worldOverlay.render(graphics);
@@ -197,7 +214,7 @@ public class MobCheckWorldOverlayTest
 		when(comp.getSize()).thenReturn(5);
 		when(npc.getComposition()).thenReturn(comp);
 
-		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(2, 2, MobCheckPlugin.PrayerStyle.MAGIC, "JalTok-Jad", npc, null, false);
+		MobCheckPlugin.AttackState attack = new MobCheckPlugin.AttackState(2, 2, MobCheckPlugin.PrayerStyle.MAGIC, "JalTok-Jad", npc, false);
 		when(plugin.getActiveAttacks()).thenReturn(List.of(attack));
 
 		worldOverlay.render(graphics);

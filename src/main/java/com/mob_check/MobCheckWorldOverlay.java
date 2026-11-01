@@ -24,7 +24,6 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
-import net.runelite.client.ui.overlay.OverlayPriority;
 
 @SuppressWarnings("deprecation")
 public class MobCheckWorldOverlay extends Overlay
@@ -48,7 +47,7 @@ public class MobCheckWorldOverlay extends Overlay
 		this.config = config;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_SCENE);
-		setPriority(OverlayPriority.MED);
+		setPriority(Overlay.PRIORITY_MED);
 	}
 
 	@Override
@@ -67,97 +66,107 @@ public class MobCheckWorldOverlay extends Overlay
 		}
 
 		renderedNpcs.clear();
+		Stroke originalStroke = graphics.getStroke();
+		Font originalFont = graphics.getFont();
 
-		for (MobCheckPlugin.AttackState attack : attacks)
+		try
 		{
-			NPC npc = attack.sourceNpc;
-			if (npc == null || npc.isDead() || !renderedNpcs.add(npc.getIndex()))
+			for (MobCheckPlugin.AttackState attack : attacks)
 			{
-				continue;
-			}
-
-			Color styleColor = attack.prayerStyle != null ? attack.prayerStyle.getColor() : Color.WHITE;
-			Color tileFill = attack.prayerStyle != null ? attack.prayerStyle.getTileFillColor() : DEFAULT_TILE_FILL;
-			Color hullFill = attack.prayerStyle != null ? attack.prayerStyle.getHullFillColor() : DEFAULT_HULL_FILL;
-
-			// 1. Draw True Tile polygon on the ground
-			// #11: Use getWorldLocation() for actual server-side true tile,
-			// not getLocalLocation() which returns the interpolated visual position
-			if (config.highlightNpcTrueTile())
-			{
-				WorldPoint wp = npc.getWorldLocation();
-				if (wp != null)
+				NPC npc = attack.sourceNpc;
+				if (npc == null || npc.isDead() || !renderedNpcs.add(npc.getIndex()))
 				{
-					LocalPoint lp = null;
-					try
-					{
-						lp = LocalPoint.fromWorld(client, wp);
-					}
-					catch (Exception ignored)
-					{
-					}
-					if (lp != null)
-					{
-						// #12: Use NPC size for multi-tile NPCs (e.g. 3x3 bosses)
-						int npcSize = 1;
-						NPCComposition composition = npc.getTransformedComposition() != null ? npc.getTransformedComposition() : npc.getComposition();
-						if (composition != null)
-						{
-							npcSize = composition.getSize();
-						}
+					continue;
+				}
 
-						Polygon tilePoly;
-						if (npcSize > 1)
-						{
-							int offset = (npcSize - 1) * Perspective.LOCAL_TILE_SIZE / 2;
-							LocalPoint centeredLp = new LocalPoint(lp.getX() + offset, lp.getY() + offset, lp.getWorldView());
-							tilePoly = Perspective.getCanvasTileAreaPoly(client, centeredLp, npcSize);
-						}
-						else
-						{
-							tilePoly = Perspective.getCanvasTilePoly(client, lp);
-						}
+				Color styleColor = attack.prayerStyle != null ? attack.prayerStyle.getColor() : Color.WHITE;
+				Color tileFill = attack.prayerStyle != null ? attack.prayerStyle.getTileFillColor() : DEFAULT_TILE_FILL;
+				Color hullFill = attack.prayerStyle != null ? attack.prayerStyle.getHullFillColor() : DEFAULT_HULL_FILL;
 
-						if (tilePoly != null)
+				// 1. Draw True Tile polygon on the ground
+				// Use getWorldLocation() for actual server-side true tile,
+				// not getLocalLocation() which returns the interpolated visual position
+				if (config.highlightNpcTrueTile())
+				{
+					WorldPoint wp = npc.getWorldLocation();
+					if (wp != null)
+					{
+						LocalPoint lp = null;
+						try
 						{
-							graphics.setColor(styleColor);
-							graphics.setStroke(NPC_STROKE);
-							graphics.drawPolygon(tilePoly);
+							lp = LocalPoint.fromWorld(client, wp);
+						}
+						catch (Exception ignored)
+						{
+						}
+						if (lp != null)
+						{
+							// Use NPC size for multi-tile NPCs (e.g. 3x3 bosses)
+							int npcSize = 1;
+							NPCComposition composition = npc.getTransformedComposition() != null ? npc.getTransformedComposition() : npc.getComposition();
+							if (composition != null)
+							{
+								npcSize = composition.getSize();
+							}
 
-							graphics.setColor(tileFill);
-							graphics.fillPolygon(tilePoly);
+							Polygon tilePoly;
+							if (npcSize > 1)
+							{
+								int offset = (npcSize - 1) * Perspective.LOCAL_TILE_SIZE / 2;
+								LocalPoint centeredLp = new LocalPoint(lp.getX() + offset, lp.getY() + offset, lp.getWorldView());
+								tilePoly = Perspective.getCanvasTileAreaPoly(client, centeredLp, npcSize);
+							}
+							else
+							{
+								tilePoly = Perspective.getCanvasTilePoly(client, lp);
+							}
+
+							if (tilePoly != null)
+							{
+								graphics.setColor(styleColor);
+								graphics.setStroke(NPC_STROKE);
+								graphics.drawPolygon(tilePoly);
+
+								graphics.setColor(tileFill);
+								graphics.fillPolygon(tilePoly);
+							}
 						}
 					}
 				}
-			}
 
-			// 2. Draw 3D Model Convex Hull outline
-			if (config.highlightThreatNpc())
-			{
-				Shape hull = npc.getConvexHull();
-				if (hull != null)
+				// 2. Draw 3D Model Convex Hull outline
+				if (config.highlightThreatNpc())
 				{
-					graphics.setColor(styleColor);
-					graphics.setStroke(NPC_STROKE);
-					graphics.draw(hull);
+					Shape hull = npc.getConvexHull();
+					if (hull != null)
+					{
+						graphics.setColor(styleColor);
+						graphics.setStroke(NPC_STROKE);
+						graphics.draw(hull);
 
-					graphics.setColor(hullFill);
-					graphics.fill(hull);
+						graphics.setColor(hullFill);
+						graphics.fill(hull);
+					}
 				}
-			}
 
-			// 3. Render tick countdown above NPC head
-			String tickText = MobCheckPlugin.formatTicks(attack.ticks);
-			Point textLoc = npc.getCanvasTextLocation(graphics, tickText, npc.getLogicalHeight() + 30);
-			if (textLoc != null)
-			{
+				// 3. Render tick countdown above NPC head (set font first so FontMetrics match)
+				String tickText = MobCheckPlugin.formatTicks(attack.ticks);
 				graphics.setFont(NPC_FONT);
-				graphics.setColor(Color.BLACK);
-				graphics.drawString(tickText, textLoc.getX() + 1, textLoc.getY() + 1);
+				Point textLoc = npc.getCanvasTextLocation(graphics, tickText, npc.getLogicalHeight() + 30);
+				if (textLoc != null)
+				{
+					graphics.setColor(Color.BLACK);
+					graphics.drawString(tickText, textLoc.getX() + 1, textLoc.getY() + 1);
 
-				graphics.setColor(attack.ticks <= config.warningThreshold() ? Color.RED : Color.WHITE);
-				graphics.drawString(tickText, textLoc.getX(), textLoc.getY());
+					graphics.setColor(attack.ticks <= config.warningThreshold() ? Color.RED : Color.WHITE);
+					graphics.drawString(tickText, textLoc.getX(), textLoc.getY());
+				}
 			}
+		}
+		finally
+		{
+			graphics.setStroke(originalStroke);
+			graphics.setFont(originalFont);
 		}
 
 		return null;

@@ -2,6 +2,7 @@ package com.mob_check;
 
 import java.awt.Color;
 
+import net.runelite.api.SoundEffectID;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
@@ -185,6 +186,18 @@ public interface MobCheckConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "onlyAlertWhenUnprotected",
+		name = "Only Alert When Unprotected",
+		description = "Suppresses priority-change sound cues when the required protection prayer is already active",
+		section = audioSection,
+		position = 2
+	)
+	default boolean onlyAlertWhenUnprotected()
+	{
+		return false;
+	}
+
 	@Range(
 		min = 0,
 		max = 10000
@@ -194,11 +207,11 @@ public interface MobCheckConfig extends Config
 		name = "Magic Sound ID",
 		description = "Sound effect ID to play when Magic protection is needed",
 		section = audioSection,
-		position = 2
+		position = 3
 	)
 	default int magicSoundId()
 	{
-		return 2266;
+		return SoundEffectID.PRAYER_ACTIVATE_PROTECT_FROM_MAGIC;
 	}
 
 	@Range(
@@ -210,11 +223,11 @@ public interface MobCheckConfig extends Config
 		name = "Range Sound ID",
 		description = "Sound effect ID to play when Range protection is needed",
 		section = audioSection,
-		position = 3
+		position = 4
 	)
 	default int rangeSoundId()
 	{
-		return 2266;
+		return SoundEffectID.PRAYER_ACTIVATE_PROTECT_FROM_MISSILES;
 	}
 
 	@Range(
@@ -226,19 +239,19 @@ public interface MobCheckConfig extends Config
 		name = "Melee Sound ID",
 		description = "Sound effect ID to play when Melee protection is needed",
 		section = audioSection,
-		position = 4
+		position = 5
 	)
 	default int meleeSoundId()
 	{
-		return 2266;
+		return SoundEffectID.PRAYER_ACTIVATE_PROTECT_FROM_MELEE;
 	}
 
 	@ConfigItem(
 		keyName = "playWrongPrayerAlert",
 		name = "Wrong Prayer Emergency Sound",
-		description = "Plays an emergency sound cue if unprotected when an attack is 1 tick away",
+		description = "Plays an emergency sound cue if unprotected within the warning tick threshold",
 		section = audioSection,
-		position = 5
+		position = 6
 	)
 	default boolean playWrongPrayerAlert()
 	{
@@ -254,7 +267,7 @@ public interface MobCheckConfig extends Config
 		name = "Wrong Prayer Sound ID",
 		description = "Sound effect ID for wrong prayer emergency warning",
 		section = audioSection,
-		position = 6
+		position = 7
 	)
 	default int wrongPrayerSoundId()
 	{

@@ -25,11 +25,12 @@ import net.runelite.api.NPC;
 import net.runelite.api.Player;
 import net.runelite.api.Prayer;
 import net.runelite.api.Projectile;
-import net.runelite.api.SpriteID;
 import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.NpcDespawned;
+import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.SpriteID;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -141,10 +142,10 @@ public class MobCheckPlugin extends Plugin
 	// Region IDs (for gating generic projectile IDs)
 	// ==========================================
 	// Fortis Colosseum region IDs
-	private static final Set<Integer> COLOSSEUM_REGION_IDS = Set.of(7216, 7472);
+	static final Set<Integer> COLOSSEUM_REGION_IDS = Set.of(7216, 7472);
 
 	// Waterbirth Island Dungeon / Dagannoth Kings Lair
-	private static final Set<Integer> DAGANNOTH_KINGS_REGION_IDS = Set.of(11588, 11589);
+	static final Set<Integer> DAGANNOTH_KINGS_REGION_IDS = Set.of(11588, 11589);
 
 	@Inject
 	private Client client;
@@ -156,6 +157,9 @@ public class MobCheckPlugin extends Plugin
 	private MobCheckOverlay overlay;
 
 	@Inject
+	private MobCheckHudOverlay hudOverlay;
+
+	@Inject
 	private MobCheckPrayerWidgetOverlay prayerWidgetOverlay;
 
 	@Inject
@@ -164,27 +168,26 @@ public class MobCheckPlugin extends Plugin
 	@Inject
 	private OverlayManager overlayManager;
 
-	@SuppressWarnings("deprecation")
 	public enum PrayerStyle
 	{
-		MAGIC("Pray Magic", Prayer.PROTECT_FROM_MAGIC, SpriteID.PRAYER_PROTECT_FROM_MAGIC, 25, new Color(0, 200, 255), new Color(0, 200, 255, 35), new Color(0, 200, 255, 25)),
-		RANGE("Pray Range", Prayer.PROTECT_FROM_MISSILES, SpriteID.PRAYER_PROTECT_FROM_MISSILES, 26, new Color(0, 255, 100), new Color(0, 255, 100, 35), new Color(0, 255, 100, 25)),
-		MELEE("Pray Melee", Prayer.PROTECT_FROM_MELEE, SpriteID.PRAYER_PROTECT_FROM_MELEE, 27, new Color(255, 110, 0), new Color(255, 110, 0, 35), new Color(255, 110, 0, 25));
+		MAGIC("Pray Magic", Prayer.PROTECT_FROM_MAGIC, SpriteID.Prayeron.PROTECT_FROM_MAGIC, InterfaceID.Prayerbook.PRAYER17, new Color(0, 200, 255), new Color(0, 200, 255, 35), new Color(0, 200, 255, 25)),
+		RANGE("Pray Range", Prayer.PROTECT_FROM_MISSILES, SpriteID.Prayeron.PROTECT_FROM_MISSILES, InterfaceID.Prayerbook.PRAYER18, new Color(0, 255, 100), new Color(0, 255, 100, 35), new Color(0, 255, 100, 25)),
+		MELEE("Pray Melee", Prayer.PROTECT_FROM_MELEE, SpriteID.Prayeron.PROTECT_FROM_MELEE, InterfaceID.Prayerbook.PRAYER19, new Color(255, 110, 0), new Color(255, 110, 0, 35), new Color(255, 110, 0, 25));
 
 		private final String displayName;
 		private final Prayer prayer;
 		private final int spriteId;
-		private final int childIndex;
+		private final int componentId;
 		private final Color color;
 		private final Color tileFillColor;
 		private final Color hullFillColor;
 
-		PrayerStyle(String displayName, Prayer prayer, int spriteId, int childIndex, Color color, Color tileFillColor, Color hullFillColor)
+		PrayerStyle(String displayName, Prayer prayer, int spriteId, int componentId, Color color, Color tileFillColor, Color hullFillColor)
 		{
 			this.displayName = displayName;
 			this.prayer = prayer;
 			this.spriteId = spriteId;
-			this.childIndex = childIndex;
+			this.componentId = componentId;
 			this.color = color;
 			this.tileFillColor = tileFillColor;
 			this.hullFillColor = hullFillColor;
@@ -205,9 +208,9 @@ public class MobCheckPlugin extends Plugin
 			return spriteId;
 		}
 
-		public int getChildIndex()
+		public int getComponentId()
 		{
-			return childIndex;
+			return componentId;
 		}
 
 		public Color getColor()
@@ -224,18 +227,6 @@ public class MobCheckPlugin extends Plugin
 		{
 			return hullFillColor;
 		}
-
-		public static PrayerStyle fromDisplayName(String name)
-		{
-			for (PrayerStyle style : values())
-			{
-				if (style.displayName.equalsIgnoreCase(name) || style.name().equalsIgnoreCase(name))
-				{
-					return style;
-				}
-			}
-			return MAGIC;
-		}
 	}
 
 	public static class AttackState
@@ -245,22 +236,20 @@ public class MobCheckPlugin extends Plugin
 		public final PrayerStyle prayerStyle;
 		public final String npcName;
 		public final NPC sourceNpc;
-		public final Projectile projectile;
 		public final boolean isManticoreCombo;
 
 		public AttackState(int ticks, PrayerStyle prayerStyle, String npcName)
 		{
-			this(ticks, ticks, prayerStyle, npcName, null, null, false);
+			this(ticks, ticks, prayerStyle, npcName, null, false);
 		}
 
-		public AttackState(int ticks, int initialTicks, PrayerStyle prayerStyle, String npcName, NPC sourceNpc, Projectile projectile, boolean isManticoreCombo)
+		public AttackState(int ticks, int initialTicks, PrayerStyle prayerStyle, String npcName, NPC sourceNpc, boolean isManticoreCombo)
 		{
 			this.ticks = ticks;
 			this.initialTicks = Math.max(initialTicks, ticks);
 			this.prayerStyle = prayerStyle != null ? prayerStyle : PrayerStyle.MAGIC;
 			this.npcName = npcName;
 			this.sourceNpc = sourceNpc;
-			this.projectile = projectile;
 			this.isManticoreCombo = isManticoreCombo;
 		}
 
@@ -433,6 +422,7 @@ public class MobCheckPlugin extends Plugin
 		cachedAttacks = Collections.emptyList();
 		lastPriorityPrayer = null;
 		overlayManager.add(overlay);
+		overlayManager.add(hudOverlay);
 		overlayManager.add(prayerWidgetOverlay);
 		overlayManager.add(worldOverlay);
 		log.debug("Mob Check plugin started");
@@ -448,6 +438,7 @@ public class MobCheckPlugin extends Plugin
 		cachedAttacks = Collections.emptyList();
 		lastPriorityPrayer = null;
 		overlayManager.remove(overlay);
+		overlayManager.remove(hudOverlay);
 		overlayManager.remove(prayerWidgetOverlay);
 		overlayManager.remove(worldOverlay);
 		log.debug("Mob Check plugin stopped");
@@ -490,7 +481,6 @@ public class MobCheckPlugin extends Plugin
 				PrayerStyle.MELEE,
 				name,
 				npc,
-				null,
 				false
 			));
 			log.debug("Melee attack registered: {} (anim={}, ticks={})", name, anim, warningTicks);
@@ -633,7 +623,7 @@ public class MobCheckPlugin extends Plugin
 		return regions;
 	}
 
-	private static boolean matchesAnyRegion(int[] playerRegions, Set<Integer> targetRegions)
+	static boolean matchesAnyRegion(int[] playerRegions, Set<Integer> targetRegions)
 	{
 		if (playerRegions == null || targetRegions == null || targetRegions.isEmpty())
 		{
@@ -647,24 +637,6 @@ public class MobCheckPlugin extends Plugin
 			}
 		}
 		return false;
-	}
-
-	/**
-	 * Checks whether the player is currently in a Colosseum region.
-	 * Used to gate generic projectile IDs (15, 160) that would false-positive elsewhere.
-	 */
-	public boolean isInColosseumRegion()
-	{
-		return matchesAnyRegion(getPlayerMapRegions(), COLOSSEUM_REGION_IDS);
-	}
-
-	/**
-	 * Checks whether the player is currently in the Dagannoth Kings Lair region.
-	 * Used to gate generic Water Wave projectile ID (162).
-	 */
-	public boolean isInDagannothKingsRegion()
-	{
-		return matchesAnyRegion(getPlayerMapRegions(), DAGANNOTH_KINGS_REGION_IDS);
 	}
 
 	/**
@@ -783,7 +755,6 @@ public class MobCheckPlugin extends Plugin
 							prayerStyle,
 							sourceName,
 							sourceNpc,
-							projectile,
 							isManticore
 						));
 					}
