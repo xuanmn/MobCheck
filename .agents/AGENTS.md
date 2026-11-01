@@ -7,7 +7,7 @@
 ## Architecture Guidelines for Mob Check
 1. **Per-Tick Cache**:
    - The attack list is rebuilt once per tick in `onGameTick()` via `buildActiveAttacks()` and cached in `cachedAttacks`.
-   - Overlays (`MobCheckOverlay`, `MobCheckPrayerWidgetOverlay`, `MobCheckWorldOverlay`) must only read from `getActiveAttacks()` / `getPriorityAttack()` to avoid mid-frame drift.
+   - Overlays (`MobCheckOverlay`, `MobCheckHudOverlay`, `MobCheckPrayerWidgetOverlay`, `MobCheckWorldOverlay`) must only read from `getActiveAttacks()` / `getPriorityAttack()` to avoid mid-frame drift.
 2. **Projectile Tracking & Initial Ticks**:
    - `projectileInitialTicks` caches the first observed tick count keyed by `System.identityHashCode(projectile)` to drive the visual progress ring. Prune stale keys on each tick.
    - Generic projectiles (e.g. arrows `15`, spells `160`) must be region-gated to prevent false positives across the game.

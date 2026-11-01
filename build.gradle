@@ -63,4 +63,5 @@ tasks.register('run', JavaExec) {
 	description = 'Runs the RuneLite client with Mob Check preloaded'
 	classpath = sourceSets.test.runtimeClasspath
 	mainClass = 'com.mob_check.MobCheckPluginTest'
+	jvmArgs '-ea'
 }

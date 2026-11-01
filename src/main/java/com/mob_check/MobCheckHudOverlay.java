@@ -163,3 +163,4 @@ public class MobCheckHudOverlay extends Overlay
 		return spriteManager.getSprite(style.getSpriteId(), 0);
 	}
 }
+

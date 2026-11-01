@@ -149,3 +149,4 @@ public class MobCheckHudOverlayTest
 		verify(graphics, times(1)).drawArc(anyInt(), anyInt(), anyInt(), anyInt(), eq(90), anyInt());
 	}
 }
+

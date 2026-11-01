@@ -45,7 +45,7 @@
 
 ### 6. Top-Threat Queue & Manticore Combo Sequence Panel
 
-- **Sidebar Info Box**: Displays up to 4 upcoming attacks ordered by impact tick, showing prayer sprites and remaining ticks.
+- **Sidebar Info Box**: Displays up to 4 upcoming attacks ordered by impact tick (with threat-tier tie-breaking), showing prayer sprites, remaining ticks, and hover tooltips with the attacking NPC name and required prayer style.
 - **Manticore 3-Hit Combo Visualizer**: Explicitly highlights rapid multi-hit combo cycles during Fortis Colosseum encounters.
 
 ---
@@ -100,10 +100,11 @@ Inside the RuneLite Configuration Panel under **Mob Check**, the following optio
 | **Danger & Warnings**      | `Flash Screen on Wrong Prayer`  | `true`           | Flashes a red screen border if unprotected when an incoming attack lands in $\le 1$ tick.           |
 |                            | `Danger Flash Color`            | `Red (Alpha 70)` | Color and transparency for the emergency screen flash border.                                       |
 | **Audio Alerts**           | `Play Sound Alert`              | `true`           | Plays an audio cue when the priority prayer style switches.                                         |
-|                            | `Magic Sound ID`                | `2266`           | Sound effect ID played when Magic protection is required.                                           |
-|                            | `Range Sound ID`                | `2266`           | Sound effect ID played when Range protection is required.                                           |
-|                            | `Melee Sound ID`                | `2266`           | Sound effect ID played when Melee protection is required.                                           |
-|                            | `Wrong Prayer Emergency Sound`  | `true`           | Plays an emergency sound warning if unprotected when an attack is 1 tick away.                      |
+|                            | `Only Alert When Unprotected`   | `false`          | Suppresses priority-change sound cues when the required protection prayer is already active.        |
+|                            | `Magic Sound ID`                | `2675`           | Sound effect ID played when Magic protection is required.                                           |
+|                            | `Range Sound ID`                | `2677`           | Sound effect ID played when Range protection is required.                                           |
+|                            | `Melee Sound ID`                | `2676`           | Sound effect ID played when Melee protection is required.                                           |
+|                            | `Wrong Prayer Emergency Sound`  | `true`           | Plays an emergency sound warning if unprotected within the configured warning threshold.            |
 |                            | `Wrong Prayer Sound ID`         | `2277`           | Sound effect ID used for the wrong prayer emergency warning.                                        |
 | **NPC Threat & World**     | `Highlight Attacking NPC`       | `true`           | Outlines the 3D model convex hull of the monster currently attacking you.                           |
 |                            | `Highlight NPC True Tile`       | `true`           | Draws the ground true tile of the attacking NPC (supporting multi-tile sizes).                      |
@@ -117,7 +118,7 @@ Inside the RuneLite Configuration Panel under **Mob Check**, the following optio
 
 1. **Per-Tick Cache Synchronization**:
    - The attack list is rebuilt once per game tick inside `onGameTick()` via `buildActiveAttacks()` and cached in `cachedAttacks`.
-   - All visual overlays (`MobCheckOverlay`, `MobCheckPrayerWidgetOverlay`, `MobCheckWorldOverlay`) consume this cached snapshot, guaranteeing zero mid-frame tearing or coordinate drift across rendering layers.
+   - All visual overlays (`MobCheckOverlay`, `MobCheckHudOverlay`, `MobCheckPrayerWidgetOverlay`, `MobCheckWorldOverlay`) consume this cached snapshot, guaranteeing zero mid-frame tearing or coordinate drift across rendering layers.
 2. **Deterministic Projectile Cycle Conversion**:
    - Projectile flight duration is converted from client engine cycles into game ticks using `(remainingCycles + 29) / 30`.
    - The initial tick count is cached on first sight keyed by `System.identityHashCode(projectile)` to drive the overhead progress arc accurately.
