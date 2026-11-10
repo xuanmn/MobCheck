@@ -17,20 +17,20 @@
 - **Tick Progress Arc**: Renders a smooth circular countdown progress ring around the overhead prayer sprite showing the travel progression of incoming projectiles from launch to impact.
 - **Dynamic Urgency Color-Coding**:
   - 🟢 **Green**: Correct protection prayer is active.
-  - ⚪ **White / Style Color**: Safe countdown period ($> 1\text{t}$).
-  - 🔴 **Red**: Urgent impact threshold ($\le 1\text{t}$) when prayer is not active.
+  - ⚪ **White / Style Color**: Safe countdown period ($> \text{warning threshold}$).
+  - 🔴 **Red**: Urgent impact threshold ($\le \text{warning threshold}$, default $1\text{t}$) when prayer is not active.
 
 ### 2. Interactive Prayer Tab Widget Highlights
 
 - **Active Prayer Status Border**:
   - 🟢 **Solid Green Outline**: Correct protection prayer is currently active.
-  - 🔴 **Pulsing Red Border & Flash**: Unprotected or wrong prayer active with an attack landing in $\le 1$ tick.
-  - 🔵 **Style-Coded Outline**: Highlights the required prayer when safe ($> 1\text{t}$).
+  - 🔴 **Pulsing Red Border & Flash**: Unprotected or wrong prayer active with an attack landing within the warning threshold (default $\le 1\text{t}$).
+  - 🔵 **Style-Coded Outline**: Highlights the required prayer when safe ($> \text{warning threshold}$).
 - **On-Widget Tick Counter**: Renders the exact tick countdown directly over the corresponding prayer button in your Prayer Tab for fast, focused clicking without looking away from your inventory/prayers.
 
 ### 3. Screen Danger Vignette Flash
 
-- Flashes a high-visibility red danger border across the game screen when an attack is $\le 1$ tick away and the player is not protected, giving you an instantaneous visual reflex cue.
+- Flashes a high-visibility red danger border across the game screen when an attack is within the warning threshold (default $\le 1\text{t}$) and the player is not protected, giving you an instantaneous visual reflex cue.
 
 ### 4. Attacking NPC Outlines & Ground True Tiles
 
@@ -40,12 +40,13 @@
 
 ### 5. Configurable Audio Alerts & Emergency Cues
 
-- **Style-Specific Sounds**: Plays customizable sound effect IDs when the priority prayer style changes (Magic, Range, Melee).
+- **Style-Specific Sounds**: Plays customizable sound effect IDs when the priority prayer style changes (defaults match official prayer activation sounds: Magic `2675`, Range `2677`, Melee `2676`).
+- **Suppression When Protected**: Optional setting (`Only Alert When Unprotected`) to suppress priority style-switch audio cues if you already have the correct protection prayer activated.
 - **Emergency Wrong Prayer Buzzer**: Plays an emergency warning sound (Default ID: `2277`) when an attack is within the configured warning threshold (default $\le 1$ tick) without the correct protection active.
 
 ### 6. Top-Threat Queue & Manticore Combo Sequence Panel
 
-- **Sidebar Info Box**: Displays up to 4 upcoming attacks ordered by impact tick (with threat-tier tie-breaking), showing prayer sprites, remaining ticks, and hover tooltips with the attacking NPC name and required prayer style.
+- **Sidebar Info Box**: Displays up to 4 upcoming attacks ordered by impact tick (with deterministic 4-tier threat weighting tie-breaking), showing prayer sprites, remaining ticks, and interactive hover tooltips displaying the attacking NPC name and required prayer style.
 - **Manticore 3-Hit Combo Visualizer**: Explicitly highlights rapid multi-hit combo cycles during Fortis Colosseum encounters.
 
 ---
