@@ -120,16 +120,28 @@ Inside the RuneLite Configuration Panel under **Mob Check**, the following optio
 1. **Per-Tick Cache Synchronization**:
    - The attack list is rebuilt once per game tick inside `onGameTick()` via `buildActiveAttacks()` and cached in `cachedAttacks`.
    - All visual overlays (`MobCheckOverlay`, `MobCheckHudOverlay`, `MobCheckPrayerWidgetOverlay`, `MobCheckWorldOverlay`) consume this cached snapshot, guaranteeing zero mid-frame tearing or coordinate drift across rendering layers.
-2. **Deterministic Projectile Cycle Conversion**:
+2. **Coordinate-Space Isolation (`MobCheckHudOverlay`)**:
+   - Isolates dynamic canvas-space HUD indicators (`OverlayPosition.DYNAMIC`, `OverlayLayer.ABOVE_WIDGETS`)—including the player overhead prayer icon, countdown progress ring, and full-screen red danger flash—from draggable sidebar panels.
+   - Prevents `Alt`-drag or snap-corner canvas translations on `MobCheckOverlay` (`OverlayPosition.TOP_LEFT`) from displacing the player overhead icon or screen border.
+3. **Deterministic 4-Tier Threat Priority**:
+   - Incoming attacks are sorted by flight/impact ticks ascending (`ticks`).
+   - Same-tick collisions are resolved deterministically using a 4-tier threat weighting hierarchy (`THREAT_CRITICAL (4) > THREAT_HIGH (3) > THREAT_MEDIUM (2) > THREAT_LOW (1)`) applied across both projectiles and melee animations.
+   - Ensures fatal boss hits (e.g. JalTok-Jad, Sol Heredit, Jal-Zek, Alchemical Hydra, General Graardor) always take precedence over chip-damage threats (e.g. Jal-MejRah bats, Jal-AkRek mini-blobs), matching standard Inferno and Colosseum PvM prayer flicking hierarchies.
+4. **Interactive Hover Tooltips via `TooltipManager`**:
+   - The draggable sidebar Info Box (`MobCheckOverlay`) integrates with RuneLite's `TooltipManager` to display the attacking NPC name and required prayer style on mouse hover.
+   - Tooltips are rendered without allocations on unhovered frames, preserving 60–144 FPS render loop performance.
+5. **Deterministic Projectile Cycle Conversion**:
    - Projectile flight duration is converted from client engine cycles into game ticks using `(remainingCycles + 29) / 30`.
    - The initial tick count is cached on first sight keyed by `System.identityHashCode(projectile)` to drive the overhead progress arc accurately.
-3. **Region-Gated Projectile Verification**:
+6. **Region-Gated Projectile Verification**:
    - Generic engine projectile IDs (e.g. standard arrows `15` and elemental spells `160` in the Colosseum, or Water Wave `162` in Dagannoth Kings Lair) are strictly gated by player map region (`client.getMapRegions()`) to prevent false positives across the wider game world.
-4. **Melee Attack Lifecycle**:
-   - Tracked via `AnimationChanged` keyed by `NPC.getIndex()`.
+7. **Melee Attack Lifecycle**:
+   - Tracked via `AnimationChanged` keyed by `NPC.getIndex()` in a `LinkedHashMap` for deterministic iteration.
    - Decremented on each game tick and preserved until `ticks < 0` so the $0\text{t}$ impact tick remains visible to the player during the decisive tick.
-5. **Server-Side True Tile Calculation**:
+8. **Server-Side True Tile Calculation**:
    - Calculated with `LocalPoint.fromWorld(client, npc.getWorldLocation())` rather than visual interpolated coordinates. Multi-tile NPCs are rendered via `Perspective.getCanvasTileAreaPoly(client, lp, npcSize)` using `npc.getComposition().getSize()`.
+9. **Modern `gameval` Type Safety**:
+   - Uses official constants from `net.runelite.api.gameval.InterfaceID.Prayerbook` and `net.runelite.api.gameval.SpriteID.Prayeron`, eliminating hardcoded widget child IDs and deprecated sprite references.
 
 ---
 
@@ -148,7 +160,7 @@ Inside the RuneLite Configuration Panel under **Mob Check**, the following optio
 
 | Command               | Description                                                                                   |
 | :-------------------- | :-------------------------------------------------------------------------------------------- |
-| `./gradlew test`      | Runs the full unit test suite (35+ unit tests covering all bosses, overlays, and edge cases). |
+| `./gradlew test`      | Runs the full unit test suite (65+ unit tests covering all bosses, overlays, and edge cases). |
 | `./gradlew build`     | Compiles the plugin classes and generates the distribution archive.                           |
 | `./gradlew shadowJar` | Builds a standalone shaded JAR including all runtime dependencies.                            |
 | `./gradlew run`       | Launches a live development RuneLite client with the Mob Check plugin pre-injected.           |
