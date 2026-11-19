@@ -1296,4 +1296,37 @@ public class MobCheckPluginUnitTest
 		assertEquals("Jal-Ak (Magic)", attacks.get(2).npcName);
 		assertEquals("Jal-MejRah", attacks.get(3).npcName);
 	}
+
+	@Test
+	public void testSameTickTieBreakerPrioritizesJalZekMeleeOverJalXilRange()
+	{
+		Player player = mock(Player.class);
+		when(client.getLocalPlayer()).thenReturn(player);
+
+		// Jal-Xil Ranger projectile landing in 3 ticks (max hit 46)
+		Projectile rangerProj = mock(Projectile.class);
+		when(rangerProj.getTargetActor()).thenReturn(player);
+		when(rangerProj.getId()).thenReturn(MobCheckPlugin.ProjectileID.JAL_XIL_RANGE);
+		when(rangerProj.getRemainingCycles()).thenReturn(90); // 3 ticks
+		net.runelite.api.Deque<Projectile> deque = createMockDeque(List.of(rangerProj));
+		when(client.getProjectiles()).thenReturn(deque);
+
+		// Jal-Zek Melee animation (4 initial -> 3 ticks after onGameTick, max hit 70)
+		NPC mager = mock(NPC.class);
+		when(mager.getIndex()).thenReturn(902);
+		when(mager.getName()).thenReturn("Jal-Zek");
+		when(mager.getAnimation()).thenReturn(MobCheckPlugin.AnimationID.JAL_ZEK_MELEE);
+		when(mager.getInteracting()).thenReturn(player);
+
+		AnimationChanged anim = new AnimationChanged();
+		anim.setActor(mager);
+		plugin.onAnimationChanged(anim);
+
+		tickAndRefresh();
+		List<MobCheckPlugin.AttackState> attacks = plugin.getActiveAttacks();
+		assertEquals(2, attacks.size());
+		assertEquals("Jal-Zek", attacks.get(0).npcName);
+		assertEquals(MobCheckPlugin.PrayerStyle.MELEE, attacks.get(0).prayerStyle);
+		assertEquals("Jal-Xil", attacks.get(1).npcName);
+	}
 }

@@ -427,7 +427,7 @@ public class MobCheckPlugin extends Plugin
 	private static final Map<Integer, MeleeInfo> MELEE_ANIMATIONS = Map.ofEntries(
 		// === INFERNO ANIMATIONS ===
 		meleeEntry(AnimationID.JAL_IMKOT_MELEE, 4, THREAT_HIGH),
-		meleeEntry(AnimationID.JAL_ZEK_MELEE, 4, THREAT_HIGH),
+		meleeEntry(AnimationID.JAL_ZEK_MELEE, 4, THREAT_CRITICAL),
 		meleeEntry(AnimationID.JAL_XIL_MELEE, 4, THREAT_HIGH),
 		meleeEntry(AnimationID.JAL_AK_MELEE, 4, THREAT_MEDIUM),
 		meleeEntry(AnimationID.JALTOK_JAD_MELEE, 4, THREAT_CRITICAL),

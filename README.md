@@ -94,7 +94,7 @@ Inside the RuneLite Configuration Panel under **Mob Check**, the following optio
 | :------------------------- | :------------------------------ | :--------------- | :-------------------------------------------------------------------------------------------------- |
 | **Overhead & HUD**         | `Show Overhead Icon`            | `true`           | Renders the required prayer icon and tick countdown directly above your player character.           |
 |                            | `Show Tick Progress Arc`        | `true`           | Draws a smooth circular countdown progress ring around the overhead prayer sprite.                  |
-|                            | `Warning Threshold`             | `1`              | Remaining tick count at which visual elements turn red for immediate urgency.                       |
+|                            | `Warning Threshold`             | `1`              | Remaining tick count at which urgency visuals turn red and emergency wrong-prayer alerts trigger.               |
 | **Prayer Book Highlights** | `Highlight Prayer Button`       | `true`           | Highlights the required protection prayer directly in the Prayer Tab interface.                     |
 |                            | `Show Ticks on Prayer Button`   | `true`           | Displays remaining ticks directly over the prayer button in the Prayer Tab.                         |
 |                            | `Flash Wrong Prayer`            | `true`           | Pulses a bright red border & fill over the required prayer button when unprotected within the warning threshold. |

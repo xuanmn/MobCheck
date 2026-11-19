@@ -93,7 +93,7 @@ public interface MobCheckConfig extends Config
 	@ConfigItem(
 		keyName = "warningThreshold",
 		name = "Warning Threshold",
-		description = "Number of remaining ticks before the overlay turns red to indicate immediate urgency",
+		description = "Number of remaining ticks at which urgency visuals turn red and emergency wrong-prayer alerts trigger",
 		section = overheadSection,
 		position = 3
 	)

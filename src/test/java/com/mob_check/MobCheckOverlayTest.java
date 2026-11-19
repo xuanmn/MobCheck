@@ -96,7 +96,7 @@ public class MobCheckOverlayTest
 
 		// Simulate OverlayRenderer translating TOP_LEFT overlay bounds to (10, 20)
 		overlay.getBounds().setLocation(10, 20);
-		// PanelComponent default border is 4px; first 32x32 InfoBox spans rel (4..36, 4..36) -> canvas (14..46, 24..56)
+		// PanelComponent default border is 4px; first InfoBox starts at rel (4, 4) -> canvas (14, 24)
 		when(client.getMouseCanvasPosition()).thenReturn(new Point(25, 35));
 
 		assertNotNull(overlay.render(graphics));
@@ -120,10 +120,10 @@ public class MobCheckOverlayTest
 	}
 
 	@Test
-	public void testHoveringInfoBoxWithNullNpcNameFallsBackToStyleDisplayName()
+	public void testHoveringInfoBoxWithNullOrEmptyNpcNameFallsBackToStyleDisplayName()
 	{
-		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.RANGE, null);
-		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
+		MobCheckPlugin.AttackState nullNameState = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.RANGE, null);
+		when(plugin.getActiveAttacks()).thenReturn(List.of(nullNameState));
 
 		BufferedImage sprite = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
 		when(spriteManager.getSprite(anyInt(), eq(0))).thenReturn(sprite);
@@ -133,6 +133,30 @@ public class MobCheckOverlayTest
 
 		assertNotNull(overlay.render(graphics));
 		verify(tooltipManager, times(1)).add(new Tooltip("Pray Range"));
+
+		MobCheckPlugin.AttackState emptyNameState = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.MELEE, "");
+		when(plugin.getActiveAttacks()).thenReturn(List.of(emptyNameState));
+
+		assertNotNull(overlay.render(graphics));
+		verify(tooltipManager, times(1)).add(new Tooltip("Pray Melee"));
+	}
+
+	@Test
+	public void testHoveringSecondInfoBoxSubmitsSecondAttackTooltip()
+	{
+		MobCheckPlugin.AttackState first = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
+		MobCheckPlugin.AttackState second = new MobCheckPlugin.AttackState(2, MobCheckPlugin.PrayerStyle.RANGE, "Jal-Xil");
+		when(plugin.getActiveAttacks()).thenReturn(List.of(first, second));
+
+		BufferedImage sprite = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+		when(spriteManager.getSprite(anyInt(), eq(0))).thenReturn(sprite);
+
+		overlay.getBounds().setLocation(0, 0);
+		// PanelComponent default preferredSize width is 129 (inner 121px); first box spans y=4..125, second box starts at y=125
+		when(client.getMouseCanvasPosition()).thenReturn(new Point(20, 140));
+
+		assertNotNull(overlay.render(graphics));
+		verify(tooltipManager, times(1)).add(new Tooltip("Jal-Xil - Pray Range"));
 	}
 
 	@Test
@@ -172,11 +196,14 @@ public class MobCheckOverlayTest
 		BufferedImage sprite = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
 		when(spriteManager.getSprite(anyInt(), eq(0))).thenReturn(sprite);
 
-		// Render once to discover actual layout bounds of first InfoBox below TitleComponent
+		overlay.getBounds().setLocation(0, 0);
+		// Hovering the TitleComponent area itself (top ~4..16px) should not emit an InfoBox tooltip
+		when(client.getMouseCanvasPosition()).thenReturn(new Point(20, 8));
 		assertNotNull(overlay.render(graphics));
-		// TitleComponent occupies top ~16px; InfoBox sits below it around y=20..52, x=4..36
-		when(client.getMouseCanvasPosition()).thenReturn(new Point(20, 30));
+		verify(tooltipManager, never()).add(any());
 
+		// InfoBox sits directly below TitleComponent
+		when(client.getMouseCanvasPosition()).thenReturn(new Point(20, 30));
 		assertNotNull(overlay.render(graphics));
 		verify(tooltipManager, times(1)).add(new Tooltip("Manticore (Magic) - Pray Magic"));
 	}

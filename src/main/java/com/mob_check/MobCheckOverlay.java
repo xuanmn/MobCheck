@@ -132,10 +132,16 @@ public class MobCheckOverlay extends Overlay
 			}
 		}
 
-		Dimension dimension = panelComponent.render(graphics);
-		renderHoveredTooltip(count);
-		Arrays.fill(renderedAttacks, 0, count, null);
-		return dimension;
+		try
+		{
+			Dimension dimension = panelComponent.render(graphics);
+			renderHoveredTooltip(count);
+			return dimension;
+		}
+		finally
+		{
+			Arrays.fill(renderedAttacks, 0, count, null);
+		}
 	}
 
 	private void renderHoveredTooltip(int count)
@@ -146,12 +152,12 @@ public class MobCheckOverlay extends Overlay
 		}
 
 		Point mouse = client.getMouseCanvasPosition();
-		if (mouse == null)
+		Rectangle overlayBounds = getBounds();
+		if (mouse == null || overlayBounds == null)
 		{
 			return;
 		}
 
-		Rectangle overlayBounds = getBounds();
 		int relX = mouse.getX() - overlayBounds.x;
 		int relY = mouse.getY() - overlayBounds.y;
 
