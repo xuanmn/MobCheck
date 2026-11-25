@@ -96,51 +96,51 @@ public class MobCheckOverlay extends Overlay
 		}
 
 		int count = 0;
-		for (MobCheckPlugin.AttackState attack : attacks)
-		{
-			if (count >= MAX_INFO_BOXES) // Show up to top N incoming attacks
-			{
-				break;
-			}
-			BufferedImage sprite = getPrayerSprite(attack.prayerStyle);
-			if (sprite != null)
-			{
-				InfoBoxComponent infoBox = reusableInfoBoxes[count];
-				infoBox.setImage(sprite);
-				infoBox.setText(MobCheckPlugin.formatTicks(attack.ticks));
-				renderedAttacks[count] = attack;
-
-				boolean itemProtected = plugin.isPrayerProtected(attack.prayerStyle);
-				Color textColor;
-				if (itemProtected)
-				{
-					textColor = Color.GREEN;
-				}
-				else if (attack.ticks <= config.warningThreshold())
-				{
-					textColor = Color.RED;
-				}
-				else
-				{
-					textColor = Color.WHITE;
-				}
-
-				infoBox.setColor(textColor);
-				infoBox.setBackgroundColor(INFOBOX_BG_COLOR);
-				panelComponent.getChildren().add(infoBox);
-				count++;
-			}
-		}
-
 		try
 		{
+			for (MobCheckPlugin.AttackState attack : attacks)
+			{
+				if (count >= MAX_INFO_BOXES) // Show up to top N incoming attacks
+				{
+					break;
+				}
+				BufferedImage sprite = getPrayerSprite(attack.prayerStyle);
+				if (sprite != null)
+				{
+					InfoBoxComponent infoBox = reusableInfoBoxes[count];
+					infoBox.setImage(sprite);
+					infoBox.setText(MobCheckPlugin.formatTicks(attack.ticks));
+
+					boolean itemProtected = plugin.isPrayerProtected(attack.prayerStyle);
+					Color textColor;
+					if (itemProtected)
+					{
+						textColor = Color.GREEN;
+					}
+					else if (attack.ticks <= config.warningThreshold())
+					{
+						textColor = Color.RED;
+					}
+					else
+					{
+						textColor = Color.WHITE;
+					}
+
+					infoBox.setColor(textColor);
+					infoBox.setBackgroundColor(INFOBOX_BG_COLOR);
+					panelComponent.getChildren().add(infoBox);
+					renderedAttacks[count] = attack;
+					count++;
+				}
+			}
+
 			Dimension dimension = panelComponent.render(graphics);
 			renderHoveredTooltip(count);
 			return dimension;
 		}
 		finally
 		{
-			Arrays.fill(renderedAttacks, 0, count, null);
+			Arrays.fill(renderedAttacks, null);
 		}
 	}
 

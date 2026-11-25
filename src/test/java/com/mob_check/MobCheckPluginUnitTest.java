@@ -1327,6 +1327,8 @@ public class MobCheckPluginUnitTest
 		assertEquals(2, attacks.size());
 		assertEquals("Jal-Zek", attacks.get(0).npcName);
 		assertEquals(MobCheckPlugin.PrayerStyle.MELEE, attacks.get(0).prayerStyle);
+		assertEquals(3, attacks.get(0).ticks);
 		assertEquals("Jal-Xil", attacks.get(1).npcName);
+		assertEquals(3, attacks.get(1).ticks);
 	}
 }

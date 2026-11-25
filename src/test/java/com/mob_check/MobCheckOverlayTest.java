@@ -3,6 +3,7 @@ package com.mob_check;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -10,11 +11,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
 
@@ -157,6 +160,51 @@ public class MobCheckOverlayTest
 
 		assertNotNull(overlay.render(graphics));
 		verify(tooltipManager, times(1)).add(new Tooltip("Jal-Xil - Pray Range"));
+		verifyNoMoreInteractions(tooltipManager);
+	}
+
+	@Test
+	public void testNullOverlayBoundsSkipsTooltipWithoutThrowing()
+	{
+		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
+		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
+
+		BufferedImage sprite = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+		when(spriteManager.getSprite(anyInt(), eq(0))).thenReturn(sprite);
+
+		overlay.setBounds(null);
+		when(client.getMouseCanvasPosition()).thenReturn(new Point(20, 20));
+
+		assertNotNull(overlay.render(graphics));
+		verify(tooltipManager, never()).add(any());
+	}
+
+	@Test
+	public void testMidLoopExceptionStillClearsRenderedAttacks() throws Exception
+	{
+		MobCheckPlugin.AttackState state = new MobCheckPlugin.AttackState(1, MobCheckPlugin.PrayerStyle.MAGIC, "Jal-Zek");
+		when(plugin.getActiveAttacks()).thenReturn(List.of(state));
+
+		BufferedImage sprite = new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+		when(spriteManager.getSprite(anyInt(), eq(0))).thenReturn(sprite);
+		when(plugin.isPrayerProtected(MobCheckPlugin.PrayerStyle.MAGIC)).thenThrow(new IllegalStateException("simulated failure"));
+
+		try
+		{
+			overlay.render(graphics);
+			fail("Expected IllegalStateException to propagate");
+		}
+		catch (IllegalStateException expected)
+		{
+		}
+
+		Field field = MobCheckOverlay.class.getDeclaredField("renderedAttacks");
+		field.setAccessible(true);
+		MobCheckPlugin.AttackState[] renderedAttacks = (MobCheckPlugin.AttackState[]) field.get(overlay);
+		for (MobCheckPlugin.AttackState entry : renderedAttacks)
+		{
+			assertNull("renderedAttacks should not retain stale AttackState references after an exception", entry);
+		}
 	}
 
 	@Test
